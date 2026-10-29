@@ -1,0 +1,3 @@
+SUM_RECORD_CHOICE cases=35389440 inputs=221184 phase_and_value=true
+SUM_RECORD_THRESHOLD_LIFECYCLE cases=98304 all_measurement_branches=true
+SUM_RECORD_VALUATION_BOUND cases=87380

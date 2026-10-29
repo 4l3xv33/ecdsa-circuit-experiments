@@ -1,0 +1,5 @@
+running 3 tests
+test point_add::leapfrog::sr_tests::sum_record_choice ... ok
+test point_add::leapfrog::sr_tests::sum_record_threshold_and_lifecycle ... ok
+test point_add::leapfrog::sr_tests::sum_record_valuation_bound ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 41 filtered out; finished in 1.93s

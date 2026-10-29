@@ -1,0 +1,20 @@
+{
+  "baseline": {
+    "stored_state_bytes": 7936640,
+    "full_batches": 141,
+    "different_stored_batches": 0,
+    "raw_sha256": "7c3cb975896eeac9feedb1ff26f6f5eff01ce8b3b0eb404f53125e533f64e310"
+  },
+  "fresh": {
+    "stored_state_bytes": 7936640,
+    "full_batches": 141,
+    "different_stored_batches": 0,
+    "raw_sha256": "c57357a35218fa496901e8084158956c54cea3e8cb58441f72644c1ce7399bce"
+  },
+  "candidate": {
+    "stored_state_bytes": 7936640,
+    "full_batches": 141,
+    "different_stored_batches": 0,
+    "raw_sha256": "37edc653fadf9ce0802b20c54e308992f4a9d767a85251dfb92f9a83875ea137"
+  }
+}

@@ -1,0 +1,217 @@
+{
+  "baseline": {
+    "commit": "2120d8a20c9d277e3cfdae29639ec58a78e72e16",
+    "toffoli": 741629,
+    "qubits": 1234,
+    "accepted_product": 915170186
+  },
+  "official_acceptance": {
+    "hash_dependent_packet": true,
+    "domain": "quantum_ecc-fiat-shamir-v2",
+    "seed_fields": "u64le operation count, then u8 kind and six u64le operands for each operation",
+    "tests": 9024,
+    "rng": "One SHAKE256 reader supplies scalar pairs then simulator measurement words",
+    "supported_cli_metadata": "--note",
+    "supported_packet_override": false,
+    "score_formula": "round(mean executed Toffoli) * analyzed qubit width",
+    "score_requires": "No sampled classical mismatch, phase garbage or final ancilla garbage; load validation must pass",
+    "rule_caveat": "README also specifies reversibility; no passing all-input or reverse correctness claim"
+  },
+  "dirty_reset_trace": {
+    "reset_events": 39,
+    "affected_classical_error_shots": 13,
+    "total_classical_error_shots": 16,
+    "classical_error_shots_without_dirty_reset": [
+      1621,
+      4279,
+      7556
+    ],
+    "origin": "leapfrog.rs resize sign-copy trimming, with matching raw-builder provenance",
+    "scope": "Information loss observed; not a proof that every observed reset is the primary cause of every failure",
+    "logging_only_build_identical_to_candidate": true
+  },
+  "exact_compare_prototype": {
+    "exhaustive_cases": 139776,
+    "small_widths": [
+      4,
+      6,
+      8
+    ],
+    "input_restoration": true,
+    "phase_errors": 0,
+    "all_internal_measurement_coefficients_cancel": true,
+    "full_width": 256,
+    "window": 20,
+    "clean_carries": 19,
+    "truncated_expected_toffoli": 9.5,
+    "exact_expected_toffoli": 245.5,
+    "extra_expected_toffoli": 236,
+    "scope": "Full-width emitted-gate cost, not full-width exhaustive correctness"
+  },
+  "affine_storage_probe": {
+    "sampled_positions": 12,
+    "maximum_symbolic_rank": 1234,
+    "critical_position": 611817,
+    "affine_spare_at_critical_position": false,
+    "scope": "Conservative symbolic model; does not rule out nonlinear compression or a different schedule"
+  },
+  "one_guard_repair": {
+    "artifact_sha256": "169c6bb92669c09b05916eee0d2e7e729da33da2e624bd7ca7bcff681b96dd2f",
+    "operations": 10224247,
+    "qubits": 1236,
+    "fixed_nonce_tail_unchanged": true,
+    "removed_stream_bound_postpasses": true,
+    "patch": "patches/guard-repair.patch",
+    "official_status": "FAIL",
+    "official_classical_mismatches": 16,
+    "official_phase_garbage_batches": 13,
+    "official_ancilla_garbage_batches": 0,
+    "official_diagnostic_rounded_product": 922094316,
+    "official_score": null,
+    "frozen_cases": 27072,
+    "frozen_classical_failures_before": 31,
+    "frozen_classical_failures_after": 26,
+    "fixed_classical_cases": 5,
+    "new_classical_cases": 0,
+    "phase_comparison_caveat": "Measurement count and order differ; phase outcome counts are not paired on equal random words",
+    "frozen_results": {
+      "baseline": {
+        "identical_input_cases": 9024,
+        "baseline_classical_error_shots": [],
+        "repair_classical_error_shots": [],
+        "fixed_classical_errors": [],
+        "new_classical_errors": [],
+        "metrics": {
+          "packet_source": "/packet.bin",
+          "passed": true,
+          "shots": 9024,
+          "qubits": 1236,
+          "operations": 10224247,
+          "average_toffoli": 746030.559175532,
+          "average_clifford": 7366527.194148936,
+          "rounded_diagnostic_product": 922094316,
+          "classical_errors": 0,
+          "phase_error_batches": 0,
+          "ancilla_error_batches": 0,
+          "official_score": null
+        },
+        "measurement_words": "Each starts from the same frozen reader, but different measurement counts/order prevent aligned phase-outcome comparison."
+      },
+      "fresh": {
+        "identical_input_cases": 9024,
+        "baseline_classical_error_shots": [
+          669,
+          1005,
+          1375,
+          2208,
+          2876,
+          3109,
+          3483,
+          3753,
+          5044,
+          6194,
+          7032,
+          7776,
+          8327,
+          8559,
+          8733
+        ],
+        "repair_classical_error_shots": [
+          669,
+          1005,
+          1375,
+          2208,
+          3109,
+          3483,
+          5044,
+          6194,
+          7032,
+          7776,
+          8327,
+          8559,
+          8733
+        ],
+        "fixed_classical_errors": [
+          2876,
+          3753
+        ],
+        "new_classical_errors": [],
+        "metrics": {
+          "packet_source": "fresh",
+          "passed": false,
+          "shots": 9024,
+          "qubits": 1236,
+          "operations": 10224247,
+          "average_toffoli": 746036.1328679078,
+          "average_clifford": 7366616.767952127,
+          "rounded_diagnostic_product": 922100496,
+          "classical_errors": 13,
+          "phase_error_batches": 8,
+          "ancilla_error_batches": 0,
+          "official_score": null
+        },
+        "measurement_words": "Each starts from the same frozen reader, but different measurement counts/order prevent aligned phase-outcome comparison."
+      },
+      "old-candidate": {
+        "identical_input_cases": 9024,
+        "baseline_classical_error_shots": [
+          885,
+          1621,
+          2611,
+          3208,
+          3487,
+          3898,
+          4279,
+          5526,
+          5891,
+          6282,
+          6839,
+          6861,
+          7121,
+          7556,
+          8468,
+          8611
+        ],
+        "repair_classical_error_shots": [
+          885,
+          1621,
+          2611,
+          3487,
+          3898,
+          4279,
+          5891,
+          6282,
+          6839,
+          6861,
+          7121,
+          8468,
+          8611
+        ],
+        "fixed_classical_errors": [
+          3208,
+          5526,
+          7556
+        ],
+        "new_classical_errors": [],
+        "metrics": {
+          "packet_source": "/packet.bin",
+          "passed": false,
+          "shots": 9024,
+          "qubits": 1236,
+          "operations": 10224247,
+          "average_toffoli": 746026.1167996454,
+          "average_clifford": 7366458.409131206,
+          "rounded_diagnostic_product": 922088136,
+          "classical_errors": 13,
+          "phase_error_batches": 2,
+          "ancilla_error_batches": 0,
+          "official_score": null
+        },
+        "measurement_words": "Each starts from the same frozen reader, but different measurement counts/order prevent aligned phase-outcome comparison."
+      }
+    },
+    "patch_applies_after": "Independent reconstruction against pinned baseline through scripts/prepare.py",
+    "patch_apply_check": "passed",
+    "patch_source_equivalence": "Matches tested source exactly after CRLF/LF normalization; unchanged source lines retain original endings in distributable patch"
+  }
+}

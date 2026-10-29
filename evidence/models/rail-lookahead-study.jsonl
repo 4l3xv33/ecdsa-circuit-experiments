@@ -1,0 +1,2 @@
+{"policy": "lookahead-max", "walks": 8192, "not_parked": 1, "guard_histogram": {"0": 8190, "4": 1, "1": 1}, "failure_details": [{"i": 4881, "d": "0xc69e988ec97daaccd98d877567979a9df013b8728cc48eebfc759fe955b1d014", "endpoint": ["-3", "1"], "width_excess": 0}]}
+{"policy": "lookahead-product", "walks": 8192, "not_parked": 1, "guard_histogram": {"0": 8190, "3": 2}, "failure_details": [{"i": 449, "d": "0x917ffc5a0c3b4345e8b712a52454ef73d9855e36d3ee2e607588c8491f04ace8", "endpoint": ["-21", "5"], "width_excess": 3}]}

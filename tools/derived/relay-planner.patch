@@ -1,0 +1,222 @@
+--- a/relay-planner.rs
++++ b/relay-planner.rs
+@@ -379,0 +380,219 @@
++
++fn existing_product(v:&Vals,a:u32,b:u32)->Option<u32> {
++    if a==ZERO || b==ZERO {Some(ZERO)}
++    else if a==ONE || a==b {Some(b)} else if b==ONE {Some(a)}
++    else {v.h.get(&(T_AND,a.min(b),a.max(b))).copied()}
++}
++
++// A reversible Clifford clearing of an idle wire: donor XOR parity = constant.
++// Every member is untouched across the proposed hold interval. Restoring the
++// same parity after consuming the held AND therefore restores the donor.
++fn idle_borrow(qv:&[u32], vals:&Vals, touched:&[usize], written:&[usize], since:usize, target:u32)
++ -> Option<(u32,Vec<u32>,bool)> {
++    let idle:Vec<u32>=(512..qv.len()).chain(0..512)
++        .filter(|&q|q as u32!=target && touched[q]<since).map(|q|q as u32).collect();
++    for &q in &idle {if qv[q as usize]<=ONE {return Some((q,vec![],qv[q as usize]==ONE));}}
++    let mut basis:HashMap<u32,(Vec<u32>,Vec<u32>)>=HashMap::new();
++    let stable:Vec<u32>=(0..qv.len()).filter(|&q|q as u32!=target && written[q]<since && touched[q]>=since).map(|q|q as u32).collect();
++    for q in stable.into_iter().chain(idle) {
++        let mut row=vals.atoms(qv[q as usize]);let mut comb=vec![q];
++        while let Some(p)=row.iter().rev().copied().find(|&v|v!=ONE) {
++            if let Some((r,c))=basis.get(&p) {row=symdiff(&row,r);comb=symdiff(&comb,c);}
++            else {break;}
++        }
++        if let Some(p)=row.iter().rev().copied().find(|&v|v!=ONE) {basis.insert(p,(row,comb));}
++        else if touched[q as usize]<since {comb.retain(|&w|w!=q);return Some((q,comb,row.contains(&ONE)));}
++    }
++    None
++}
++
++// Plan each exact match independently. Uses inside a classical condition block
++// are charged at its outer PUSH, so every inserted relay occurs outside the
++// block and no stored value is exposed to conditionally executed operations.
++fn relay_plans(ls:&[L], pairs:&[(usize,u32,u32,usize,u32)]) {
++    let nq=1234usize;
++    let mut uses=vec![Vec::<usize>::new();nq];let mut writes=vec![Vec::<usize>::new();nq];let mut depth=0usize;let mut outer=0usize;
++    let mut nested=vec![false;ls.len()];
++    for (k,o) in ls.iter().enumerate() {
++        nested[k]=depth>0;
++        if o.kind==K_PUSH {if depth==0 {outer=k;} depth+=1;}
++        let at=if depth==0 {k}else{outer};
++        for q in [o.c2,o.c1,o.t] {if q!=NQ {
++            let u=&mut uses[q as usize];if u.last()!=Some(&at) {u.push(at);}
++        }}
++        let mut ws=vec![];
++        if matches!(o.kind,K_X|K_CX|K_CCX|K_SWAP|K_R|K_HMR) {ws.push(o.t);}
++        if o.kind==K_SWAP {ws.push(o.c1);}
++        for q in ws {let w=&mut writes[q as usize];if w.last()!=Some(&at) {w.push(at);}}
++        if o.kind==K_POP {depth-=1;}
++    }
++    struct Plan {pair:(usize,u32,u32,usize,u32),holds:Vec<(usize,u32,Vec<u32>,bool)>,release:usize,failed:Option<usize>}
++    let mut plans:Vec<Plan>=pairs.iter().copied().filter(|p|!nested[p.0]&&!nested[p.3]).map(|pair|Plan{pair,holds:vec![],release:0,failed:None}).collect();
++    let mut starts:HashMap<usize,Vec<usize>>=HashMap::new();
++    for (j,p) in plans.iter().enumerate() {starts.entry(p.pair.0).or_default().push(j);}
++    let mut pointers=vec![0usize;nq];let mut next=vec![usize::MAX;nq];
++    let mut wpointers=vec![0usize;nq];let mut next_write=vec![usize::MAX;nq];
++    let mut active:Vec<usize>=vec![];
++    let mut done=0usize;
++    walk(ls, |k,_ctx,qv,vals,_cs,_cx,_bv| {
++        // Only the prior operation's wires can have passed an ordinary use.
++        // At a condition boundary several uses share its outer PUSH timestamp.
++        if starts.contains_key(&k) || active.iter().any(|&j|plans[j].release<=k || plans[j].pair.3==k) {
++            for q in 0..nq {while pointers[q]<uses[q].len()&&uses[q][pointers[q]]<k {pointers[q]+=1;} next[q]=uses[q].get(pointers[q]).copied().unwrap_or(usize::MAX);}
++            for q in 0..nq {while wpointers[q]<writes[q].len()&&writes[q][wpointers[q]]<k {wpointers[q]+=1;} next_write[q]=writes[q].get(wpointers[q]).copied().unwrap_or(usize::MAX);}
++        }
++        if let Some(js)=starts.get(&k) {active.extend(js);}
++        let mut keep=Vec::with_capacity(active.len());
++        for &j in &active {
++            let p=&mut plans[j];
++            if p.pair.3==k {done+=1;println!("RELAY_HIT hmr={} wire={} bit={} ccx={} target={} hops={} holds={:?}",p.pair.0,p.pair.1,p.pair.2,p.pair.3,p.pair.4,p.holds.len(),p.holds);continue;}
++            if p.release<=k {
++                assert!(!nested[k],"relay inside a condition block");
++                let old=p.holds.last().map(|h|h.1 as usize);
++                let old_parity=p.holds.last().map(|h|h.2.clone()).unwrap_or_default();
++                let donor=(0..nq).filter(|&q|Some(q)!=old && !old_parity.contains(&(q as u32)) && next[q]>k && qv[q]<=ONE).max_by_key(|&q|next[q]);
++                if let Some(q)=donor {p.holds.push((k,q as u32,vec![],qv[q]==ONE));p.release=next[q];}
++                else {
++                    let find=|horizon:usize|->Option<(u32,Vec<u32>,bool)> {
++                        let stable:Vec<u32>=(0..nq).filter(|&q|Some(q)!=old&&next_write[q]>=horizon).map(|q|q as u32).collect();
++                        let can_donate=|q:u32|next[q as usize]>=horizon&&!old_parity.contains(&q);
++                        let mut order:Vec<u32>=stable.iter().copied().filter(|&q|!can_donate(q)).collect();
++                        order.extend(stable.iter().copied().filter(|&q|can_donate(q)));
++                        let mut basis:HashMap<u32,(Vec<u32>,Vec<u32>)>=HashMap::new();
++                        for q in order {
++                            let mut row=vals.atoms(qv[q as usize]);let mut comb=vec![q];
++                            while let Some(pivot)=row.iter().rev().copied().find(|&a|a!=ONE) {
++                                if let Some((r,c))=basis.get(&pivot) {row=symdiff(&row,r);comb=symdiff(&comb,c);} else {break;}
++                            }
++                            if let Some(pivot)=row.iter().rev().copied().find(|&a|a!=ONE) {basis.insert(pivot,(row,comb));}
++                            else if can_donate(q) {comb.retain(|&w|w!=q);return Some((q,comb,row.contains(&ONE)));}
++                        }
++                        None
++                    };
++                    let mut horizons:Vec<usize>=next.iter().chain(next_write.iter()).copied().filter(|&v|v>k).collect();horizons.sort_unstable();horizons.dedup();
++                    let(mut lo,mut hi)=(0,horizons.len());let mut best=None;
++                    while lo<hi {let mid=(lo+hi)/2;if let Some(v)=find(horizons[mid]) {best=Some(v);lo=mid+1;}else{hi=mid;}}
++                    if let Some((q,parity,constant))=best {
++                        p.release=parity.iter().fold(next[q as usize],|v,&w|v.min(next_write[w as usize]));
++                        p.holds.push((k,q,parity,constant));
++                    } else {p.failed=Some(k);continue;}
++                }
++            }
++            keep.push(j);
++        }
++        active=keep;
++    });
++    let earliest=plans.iter().filter_map(|p|p.failed.map(|f|(f-p.pair.0,p.pair.0,f))).min();
++    println!("RELAY_SUM pairs={} completed={done} earliest_failure={earliest:?}",plans.len());
++}
++
++pub fn lifetime_census(ops: &[Op]) {
++    let ls:Vec<L> = ops.iter().map(to_l).collect();
++    let nq=1234usize;
++    let mut old=vec![ZERO;nq];
++    for q in 0..512 {old[q]=2;}
++    let mut unknown=0usize;
++    let mut peak=512usize;
++    let mut at=0usize;
++    let mut peak_zero=512usize;
++    let mut unknown_zero=0usize;
++    let mut last=0usize;
++    let mut values:HashMap<u32,(usize,usize)>=HashMap::new();
++    let mut distinct=0usize;
++    let mut peak_distinct=512usize;
++    let mut distinct_at=0usize;
++    let mut pair_values:HashMap<usize,(u32,u32)>=HashMap::new();
++    let mut touched=vec![0usize;nq];
++    let mut written=vec![0usize;nq];
++    let mut measured:HashMap<u32,(usize,u32,u32)>=HashMap::new();
++    let mut pending:Option<(usize,u32,u32,u32)>=None;
++    let mut cache_matches=0usize;let mut cache_hits=0usize;
++    let mut relay_candidates=vec![];
++    walk(&ls, |k,ctx,qv,vals,_cs,_cx,_bv| {
++        if k>0 {
++            let p=ls[k-1];for q in [p.c2,p.c1,p.t] {if q!=NQ {touched[q as usize]=k-1;}}
++            if matches!(p.kind,K_X|K_CX|K_CCX|K_SWAP|K_R|K_HMR) {written[p.t as usize]=k-1;}
++            if p.kind==K_SWAP {written[p.c1 as usize]=k-1;}
++        }
++        let o=ls[k];
++        if let Some((h,w,bit,value))=pending.take() {
++            if o.kind==9 && o.cc==bit && existing_product(vals,qv[o.c1 as usize],qv[o.t as usize])==Some(value) {
++                measured.insert(value,(h,w,bit));
++            }
++        }
++        if o.kind==K_HMR && ctx.is_empty() && qv[o.t as usize]>ONE {
++            pending=Some((k,o.t,o.ct,qv[o.t as usize]));
++        }
++        if o.kind==K_CCX && ctx.is_empty() && qv[o.t as usize]==ZERO {
++            if let Some(value)=existing_product(vals,qv[o.c1 as usize],qv[o.c2 as usize]) {
++                if let Some(&(h,w,bit))=measured.get(&value) {
++                    cache_matches+=1;
++                    relay_candidates.push((h,w,bit,k,o.t));
++                    println!("EXACT_CACHE_MATCH hmr={h} wire={w} bit={bit} ccx={k} target={} distance={}",o.t,k-h);
++                    if cache_hits<24 {
++                        if let Some((donor,parity,constant))=idle_borrow(qv,vals,&touched,&written,h,o.t) {
++                            cache_hits+=1;
++                            println!("EXACT_CACHE hmr={h} wire={w} bit={bit} ccx={k} target={} donor={donor} parity={parity:?} constant={constant}",o.t);
++                        }
++                    }
++                }
++            }
++        }
++        if [4550376,5134780].contains(&k) {
++            let o=ls[k];pair_values.insert(k,(qv[o.c2 as usize],qv[o.c1 as usize]));
++        }
++        if let Some(left)=match k {4551653=>Some(4550376),5136057=>Some(5134780),_=>None} {
++            let (x,y)=pair_values[&left];let o=ls[k];let z=qv[o.c2 as usize];let b=qv[o.c1 as usize];
++            let xy=symdiff(&vals.atoms(x),&vals.atoms(y));
++            let relation=xy==vals.atoms(b);
++            let delta=symdiff(&vals.atoms(x),&vals.atoms(z));
++            let (hit,lev,capped)=span(&delta,qv,vals,o.t,2000,2000);
++            println!("PAIR_PROOF left={left} right={k} carry_relation={relation} delta_atoms={} hit={hit:?} lev={lev} capped={capped}",delta.len());
++        }
++        if k==0 {
++            old.clone_from_slice(qv);
++            for (q,&v) in qv.iter().enumerate(){if v>ONE {
++                let e=values.entry(v).or_default();if q<512 {e.0+=1;}else{e.1+=1;}
++            }}
++            distinct=values.values().filter(|e|e.0==0 && e.1>0).count();
++        }
++        if k>0 {
++            let p=ls[k-1];
++            let mut changed=vec![p.c2,p.c1,p.t]; changed.sort_unstable();changed.dedup();
++            for q in changed {if q!=NQ {
++                let q=q as usize; let was=old[q]; let now=qv[q];
++                if was!=now {
++                    if was>ONE {
++                        let e=values.get_mut(&was).unwrap();
++                        distinct-=usize::from(e.0==0 && e.1>0);
++                        if q<512 {e.0-=1;}else{e.1-=1;}
++                        distinct+=usize::from(e.0==0 && e.1>0);
++                        if e.0+e.1==0 {values.remove(&was);}
++                    }
++                    if now>ONE {
++                        let e=values.entry(now).or_default();
++                        distinct-=usize::from(e.0==0 && e.1>0);
++                        if q<512 {e.0+=1;}else{e.1+=1;}
++                        distinct+=usize::from(e.0==0 && e.1>0);
++                    }
++                }
++                if q>=512 {
++                unknown=unknown + usize::from(now>ONE) - usize::from(was>ONE);
++                unknown_zero=unknown_zero + usize::from(now!=ZERO) - usize::from(was!=ZERO);
++                }
++                old[q]=now;
++            }}
++        }
++        let o=ls[k];let mut touched=vec![o.c2,o.c1,o.t];touched.sort_unstable();touched.dedup();
++        let constants=touched.iter().filter(|&&q| q!=NQ && q>=512 && qv[q as usize]<=ONE).count();
++        let zeros=touched.iter().filter(|&&q| q!=NQ && q>=512 && qv[q as usize]==ZERO).count();
++        let width=512+unknown+constants;
++        if 512+distinct>peak_distinct {peak_distinct=512+distinct;distinct_at=k;}
++        if width>peak {peak=width;at=k;}
++        peak_zero=peak_zero.max(512+unknown_zero+zeros);
++        if k-last>=1000000 {eprintln!("lifetime progress op={k} nodes={} peak={peak} at={at}",vals.node.len());last=k;}
++    });
++    println!("EXACT_CONSTANT_LIFETIMES peak={peak} at={at} zeros_only_peak={peak_zero} distinct_value_peak={peak_distinct} at={distinct_at}");
++    println!("EXACT_CACHE_SUM value_matches={cache_matches} hits_up_to_24={cache_hits}");
++    relay_plans(&ls,&relay_candidates);
++}

@@ -1,0 +1,1072 @@
+--- a/src/point_add/mod.rs
++++ b/src/point_add/mod.rs
+@@ -0,0 +1,2 @@
++mod adjacent_factor;
++mod relay_cache;
+@@ -251 +253 @@
+-        narrow::square_entry(circ);
++        // Diagnostic structural build: retain actual allocator state.
+@@ -254 +256 @@
+-        pingpong::with_phase_cap(Some(1234), || sub_square(circ, x, y));
++        pingpong::with_phase_cap(Some(std::env::var("HEO_PIN_PP_WALK_MAX_QUBITS").unwrap().parse().unwrap()), || sub_square(circ, x, y));
+@@ -515,0 +518,3 @@
++    let plan_cap: usize = std::env::var("STRUCTURAL_CAP").ok().map(|v| v.parse().expect("integer workspace cap")).unwrap_or(1220);
++    let rail_guard: usize = std::env::var("STRUCTURAL_GUARD").ok().map(|v| v.parse().expect("integer rail guard")).unwrap_or(0);
++    assert!((1150..=1300).contains(&plan_cap) && rail_guard <= 12);
+@@ -526,0 +532 @@
++    std::env::set_var("W118_FINE_TRACE", "1");
+@@ -547,0 +554,8 @@
++    // Structural workspace experiment: retain the original arithmetic precision.
++    std::env::set_var("HEO_PIN_PP_WALK_MAX_QUBITS", plan_cap.to_string());
++    std::env::set_var("STRUCTURAL_GUARD", rail_guard.to_string());
++    std::env::set_var("LF_YP8_CHUNK", "1");
++    std::env::set_var("STRUCTURAL_ALLOC_NATIVE", "1");
++    std::env::set_var("STRUCTURAL_COMPARE_TRANSPORT", "1");
++    // Report actual resource peaks; official qubit counting is unchanged.
++    std::env::set_var("W118_DIAG_PEAK", "1");
+@@ -593,71 +607 @@
+-    ops = cond_pass::run(ops);
+-    // square top carries (SL_SQTOP; unset = this gate list byte for byte): the square's inverse-row
+-    // top carries built only under the top bit that reads them (sqtop_pass.rs)
+-    ops = sqtop_pass::run(ops);
+-    ops = sqdepth2_pass::run(ops);
+-    ops = phase_cubic::run(ops);
+-    ops = rowcut_pass::run(ops);
+-    ops = reader_pass::run(ops);
+-    // y42-railtop (leapfrog.rs `Y42_BOUND`; false = this gate list byte for byte): the edits of the four bound
+-    // passes above as one table, carried to this tree's stream with the rail switches on
+-    // round17 a2-build v5w: main's seven stream-bound passes (and cond_pass ur / zero_force between them) replayed as
+-    // one edit table bound to this stream after reader_pass (frozen_stack.rs): the harness's re-anchoring of main's
+-    // edits on lever A's stream (2 census_anchored clusters) plus the generic passes' result, op for op
+-    // the 6-hunk table placed by the stream prefix it edits, the two generic classical-control passes and the proved
+-    // CCX cuts bound to this stream (compose_post.rs)
+-    ops = compose_post::run(ops);
+-    ops = stream_pipeline::run(ops);
+-    ops = post_pipeline::run(ops);
+-    ops = lane3_sigcut::run(ops);
+-    ops = source_edits::run(ops, include_str!("our_cuts.txt"));
+-    ops = rail_output_erase::run(ops);
+-    ops = source_edits::run(ops, include_str!("our_cuts2.txt"));
+-    ops = source_edits::run(ops, include_str!("builder_followup.txt"));
+-    ops = source_edits::run(ops, include_str!("value_followup.txt"));
+-    if std::env::var("BARREL_FOLLOWUP").as_deref()==Ok("1"){ops=source_edits::run(ops,include_str!("barrel_followup.txt"));}
+-    // Lane R: third post-builder table, re-mined on spookyfrog 20 after barrel_followup.
+-    // All edits are bound to the complete final pre-tail stream. ON by default (the submitted stream).
+-    ops = source_edits::run(ops, include_str!("lane_r_stack.txt"));
+-    ops=source_edits::run(ops,include_str!("score_followup.txt"));
+-    ops=source_edits::run(ops,include_str!("guarded_followup.txt"));
+-    let a: &[u32] = &[
+-        342080,1,3,12,65535,65535,27,1573,65535,65535,10,65535,27,1230,65535,65535,65535,12,65535,65535,27,1573,65535,65535,4,65535,65535,65535,1573,65535,65535,
+-        70345,1,3,12,65535,65535,829,1573,65535,65535,10,65535,829,1228,65535,65535,65535,12,65535,65535,829,1573,65535,65535,4,65535,65535,65535,1573,65535,65535,
+-        13705,1,3,12,65535,65535,36,1573,65535,65535,10,65535,36,1227,65535,65535,65535,12,65535,65535,36,1573,65535,65535,4,65535,65535,65535,1573,65535,65535,
+-        448730,1,1,13,776,772,1142,65535,65535,65535,10,65535,1230,1142,65535,65535,65535,
+-        80886,1,1,13,731,825,743,65535,65535,65535,10,65535,1228,743,65535,65535,65535,
+-        16174,1,1,13,823,827,1129,65535,65535,65535,10,65535,1227,1129,65535,65535,65535,
+-        1886899,1,3,12,65535,65535,612,1389,65535,65535,10,65535,612,1233,65535,65535,65535,12,65535,65535,612,1389,65535,65535,4,65535,65535,65535,1389,65535,65535,
+-        11833,1,1,13,147,150,1193,65535,65535,65535,10,65535,1233,1193,65535,65535,65535,
+-        7242644,1,3,12,65535,65535,4,642,65535,65535,10,65535,4,1127,65535,65535,65535,12,65535,65535,4,642,65535,65535,4,65535,65535,65535,642,65535,65535,
+-        6,1,3,12,65535,65535,1038,642,65535,65535,10,65535,1038,186,65535,65535,65535,12,65535,65535,1038,642,65535,65535,4,65535,65535,65535,642,65535,65535,
+-        6,1,3,12,65535,65535,2,642,65535,65535,10,65535,2,1228,65535,65535,65535,12,65535,65535,2,642,65535,65535,4,65535,65535,65535,642,65535,65535,
+-        31629,1,2,13,848,258,1127,65535,65535,65535,10,65535,1127,92,65535,65535,65535,13,848,258,1127,65535,65535,65535,
+-        67,1,2,13,309,258,186,65535,65535,65535,10,65535,186,803,65535,65535,65535,13,309,258,186,65535,65535,65535,
+-        66,1,2,13,310,258,1228,65535,65535,65535,10,65535,1228,848,65535,65535,65535,13,310,258,1228,65535,65535,65535,
+-        6361,1,2,7,65535,65535,92,65535,683,65535,10,65535,92,738,65535,65535,65535,7,65535,65535,92,65535,683,65535,
+-        270,1,2,7,65535,65535,803,65535,684,65535,10,65535,803,92,65535,65535,65535,7,65535,65535,803,65535,684,65535,
+-        5336,1,2,9,65535,764,1211,65535,703,65535,10,65535,738,803,65535,65535,65535,9,65535,764,1211,65535,703,65535,
+-        1,1,2,7,65535,65535,848,65535,704,65535,10,65535,848,738,65535,65535,65535,7,65535,65535,848,65535,704,65535,
+-        2545,1,2,8,65535,511,803,65535,65535,65535,10,65535,803,1211,65535,65535,65535,8,65535,511,803,65535,65535,65535,
+-        71,1,2,8,65535,287,92,65535,65535,65535,10,65535,92,1228,65535,65535,65535,8,65535,287,92,65535,65535,65535,
+-        69,1,2,8,65535,286,738,65535,65535,65535,10,65535,738,1231,65535,65535,65535,8,65535,286,738,65535,65535,65535,
+-        13305,1,1,13,1034,707,705,65535,65535,65535,10,65535,1231,705,65535,65535,65535,
+-        44499,1,1,13,707,517,796,65535,65535,65535,10,65535,1228,796,65535,65535,65535,
+-        4,1,1,13,834,1028,4,65535,65535,65535,10,65535,1211,4,65535,65535,65535,
+-    ];
+-    let mut b = String::from("10232898 b225aaa284f3cd7dda31c4499a14b8111d5c8e79b9549c9245dd6001b7690f8d\n");
+-    let (mut c, mut d) = (0, 0);
+-    while c < a.len() {
+-        d += a[c];
+-        b.push_str(&format!("{} {} {}", d, a[c+1], a[c+2]));
+-        let e = c + 3 + 7 * (a[c+1] + a[c+2]) as usize;
+-        for &f in &a[c+3..e] {
+-            b.push_str(&format!(" {}", if f == 65535 { u64::MAX } else { f as u64 }));
+-        }
+-        b.push('\n');
+-        c = e;
+-    }
+-    ops = source_edits::run(ops, &b);
+-    ops=source_edits::run(ops,include_str!("affine_followup.txt"));
+-    ops=source_edits::run(ops,include_str!("union_followup.txt"));
++    // Diagnostic structural build: legacy stream-bound rewrites are inapplicable.
+--- a/src/point_add/compare.rs
++++ b/src/point_add/compare.rs
+@@ -51,0 +52,8 @@
++    // Keep every predicate bit; trade excess clean carries for exact transport.
++    if std::env::var("STRUCTURAL_COMPARE_TRANSPORT").ok().as_deref() == Some("1") {
++        let room = super::pingpong::heo_hooks::cap().saturating_sub(circ.active_qubits() as usize);
++        if room >= 1 && room < n - 1 {
++            super::dirty_boundary_probe::hybrid(circ, u, v, borrow_in, u[0], n - 1 - room, false);
++            return;
++        }
++    }
+--- a/src/point_add/leapfrog.rs
++++ b/src/point_add/leapfrog.rs
+@@ -121,0 +122,3 @@
++    // Structural builds retain the real allocator when the workspace grows.
++    // No quantum state or measurement is changed by allocator-order restoration.
++    if std::env::var("STRUCTURAL_ALLOC_NATIVE").ok().as_deref() == Some("1") { return; }
+@@ -572,0 +576 @@
++include!("sum_record.rs");
+@@ -4487,0 +4492 @@
++    if sr_tick(t) { sr_register(c,t,k1,k2); }
+@@ -6214,0 +6220 @@
++        if sr_tick(t) {sr_unpack(c,t);}
+@@ -6220,0 +6227 @@
++        if sr_tick(t) {sr_pack(c,t);}
+@@ -6263,0 +6271 @@
++        if sr_tick(t) {sr_pack(c,t);}
+@@ -6487 +6495 @@
+-        assert_eq!(r.len(), 5, "N2: a parked rail holds 5 wires (bits 1..5)");
++        assert!(r.len() >= 5, "N2: guarded parked rail must retain the original sign-copy width");
+@@ -6491,2 +6499,3 @@
+-        let sg = r[4];
+-        for i in 0..4 {
++        let n = r.len() - 1;
++        let sg = r[n];
++        for i in 0..n {
+@@ -6498,2 +6507,2 @@
+-        N2_LENT.with(|l| l.borrow_mut()[ri] = r[0..4].to_vec());
+-        r.drain(0..4);
++        N2_LENT.with(|l| l.borrow_mut()[ri] = r[0..n].to_vec());
++        r.drain(0..n);
+@@ -6511,2 +6520,4 @@
+-        let mut nr = Vec::with_capacity(5);
+-        for i in 0..4 {
++        let n = lent.len();
++        assert!(n >= 4, "N2: missing parked rail loan metadata");
++        let mut nr = Vec::with_capacity(n + 1);
++        for i in 0..n {
+@@ -7929 +7940,9 @@
+-    let r0p = std::mem::take(&mut wk.r[0]);
++    let mut r0p = std::mem::take(&mut wk.r[0]);
++    // At the seed boundary each signed add/halve contracts operands bounded
++    // by 2^256. Held bits above bit 256 are therefore sign copies, even when
++    // the conservative table retains an extra guard wire.
++    while r0p.len() > N {
++        let top = r0p.pop().unwrap();
++        c.cx(*r0p.last().unwrap(), top);
++        c.free(top);
++    }
+@@ -7948 +7967,7 @@
+-    let r1 = std::mem::take(&mut wk.r[1]);
++    let mut r1 = std::mem::take(&mut wk.r[1]);
++    // Seed R1 is bounded by 2^256; only redundant sign copies lie above N.
++    while r1.len() > N {
++        let top = r1.pop().unwrap();
++        c.cx(*r1.last().unwrap(), top);
++        c.free(top);
++    }
+--- a/src/point_add/a2_rails.rs
++++ b/src/point_add/a2_rails.rs
+@@ -37,0 +38 @@
++    if sr_tick(t) {sr_open(c,t);return;}
+@@ -66,0 +68 @@
++    if sr_tick(t) {return Lin::k(false);}
+@@ -138,0 +141 @@
++    if sr_tick(t) {return Some(sr_high(t));}
+@@ -150,0 +154 @@
++    assert!(!sr_tick(t), "sum-record writes directly to high slots");
+@@ -157,0 +162 @@
++    if sr_tick(t) {let q=sr_high(t);if q==k3{return;}let m=c.alloc_bit();c.hmr(k3,m);c.z_if(q,m);c.free_bit(m);c.release_clean(k3);return;}
+@@ -167,0 +173 @@
++    if sr_tick(t) {sr_unpack(c,t);return sr_high(t);}
+@@ -178,0 +185 @@
++    if sr_tick(t) {return sr_consume(c,t);}
+@@ -212 +219 @@
+-    match std::env::var("LFA2_TABLE") {
++    let text = match std::env::var("LFA2_TABLE") {
+@@ -215 +222,8 @@
+-    }
++    };
++    let guard: usize = std::env::var("STRUCTURAL_GUARD").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
++    if guard == 0 { return text; }
++    assert!(guard <= 12);
++    text.lines().map(|line| {
++        if line.trim().is_empty() || line.trim_start().starts_with('#') { line.to_owned() }
++        else { line.split_whitespace().map(|v| (v.parse::<usize>().expect("rail width") + guard).to_string()).collect::<Vec<_>>().join(" ") }
++    }).collect::<Vec<_>>().join("\n")
+@@ -266,0 +281 @@
++    return false; // The sum record replaces the old approximate majority pack.
+@@ -380 +395 @@
+-pub(super) fn a2_rec_empty() -> bool { A2_REC.with(|r| r.borrow().is_empty()) }
++pub(super) fn a2_rec_empty() -> bool { A2_REC.with(|r| r.borrow().is_empty()) && sr_empty() }
+@@ -401 +416 @@
+-pub(super) fn a2_rec_clear() { A2_REC.with(|r| r.borrow_mut().clear()) }
++pub(super) fn a2_rec_clear() { A2_REC.with(|r| r.borrow_mut().clear()); SR_GROUPS.with(|r|r.borrow_mut().clear()); }
+@@ -426,0 +442 @@
++    if sr_tick(tick) {return sr_logic(c,t2,b,s1,ct,tick,outs);}
+@@ -714 +730 @@
+-    let old=yp8_reserve(tl, bl, t, fwd) + 5 + 10usize.saturating_sub((tl + 1).max(6)) + 10usize.saturating_sub((bl + 1).max(6));
++    let old=yp8_reserve(tl, bl, t, fwd) + if sr_tick(t) { 21 } else { 5 } + 10usize.saturating_sub((tl + 1).max(6)) + 10usize.saturating_sub((bl + 1).max(6));
+--- /dev/null
++++ b/src/point_add/sum_record.rs
+@@ -0,0 +1,318 @@
++// Exact alternative to the per-rail (3,1) shift record.
++// Three exponents 0..7 with sum <= 10 have exactly 256 states. Complementing
++// all nine bits changes the sum s to 21-s; exactly one complement is allowed.
++// This file is included by leapfrog.rs, so it uses the existing Lin helpers.
++fn sr_tick(t: usize) -> bool { t >= 6 && a2_tick(t) && a2_tick((t / 6) * 6 + t % 2 + 4) }
++
++// AND DAG with exact constant/duplicate simplification and reverse MBU cleanup.
++#[derive(Default)]
++struct SrDag { recs: Vec<(QubitId, Lin, Lin)> }
++impl SrDag {
++    fn and(&mut self, c: &mut Builder, a: Lin, b: Lin) -> Lin {
++        if a.w.is_empty() { return if a.one { b } else { a }; }
++        if b.w.is_empty() { return if b.one { a } else { b }; }
++        if a.x(&b).w.is_empty() { return if a.one == b.one { a } else { Lin::k(false) }; }
++        let q = lin_and(c, &a, &b);
++        self.recs.push((q, a, b)); Lin::of(&[q])
++    }
++    fn maj(&mut self, c: &mut Builder, a: Lin, b: Lin, d: Lin) -> Lin {
++        self.and(c, a.x(&d), b.x(&d)).x(&d)
++    }
++    fn finish(mut self, c: &mut Builder) {
++        while let Some((q,a,b)) = self.recs.pop() { lin_and_erase(c,q,&a,&b); }
++    }
++}
++fn sr_not(a: &Lin) -> Lin { a.x(&Lin::k(true)) }
++fn sr_lit(a: Lit) -> Lin { match a { Lit::Zero => Lin::k(false), Lit::One => Lin::k(true), Lit::W(q,n) => Lin::of(&[q]).x(&Lin::k(n)) } }
++fn sr_and_into(c:&mut Builder,a:&Lin,b:&Lin,out:QubitId) {
++    if a.w.is_empty() {if a.one{lin_xor_into(c,b,out);}}
++    else if b.w.is_empty(){if b.one{lin_xor_into(c,a,out);}}
++    else if a.x(b).w.is_empty(){if a.one==b.one{lin_xor_into(c,a,out);}}
++    else{let(ha,hb)=lin_pair_on(c,a,b);c.ccx(ha,hb,out);lin_pair_off(c,a,b);}
++}
++fn sr_phase_lin(c:&mut Builder,a:&Lin,anchor:QubitId) {
++    for &q in &a.w{c.z_if(q,NO_BIT);}
++    if a.one{c.x(anchor);c.z_if(anchor,NO_BIT);c.x(anchor);c.z_if(anchor,NO_BIT);}
++}
++fn sr_phase_product(c:&mut Builder,a:&Lin,b:&Lin,anchor:QubitId) {
++    if a.w.is_empty(){if a.one{sr_phase_lin(c,b,anchor);}}
++    else if b.w.is_empty(){if b.one{sr_phase_lin(c,a,anchor);}}
++    else if a.x(b).w.is_empty(){if a.one==b.one{sr_phase_lin(c,a,anchor);}}
++    else{let(ha,hb)=lin_pair_on(c,a,b);c.cz(ha,hb);lin_pair_off(c,a,b);}
++}
++
++// out ^= [A+B+C >= 11]. C can be either 2 or 3 bits. Carry-save addition of
++// A+B+(C+5), then the carry into bit 4. Seven/eight CCX, respectively.
++fn sr_threshold(c: &mut Builder, a: [Lin;3], b: [Lin;3], cc: [Lin;3], out: QubitId) {
++    if a.iter().chain(b.iter()).all(|v|v.w.is_empty()&&!v.one) {return;}
++    let mut g = SrDag::default();
++    let z = g.and(c, cc[0].clone(), cc[1].clone());
++    let u = g.and(c, cc[2].clone(), z.clone());
++    let d = [sr_not(&cc[0]), cc[0].x(&cc[1]), sr_not(&cc[2].x(&z)), cc[2].x(&z).x(&u)];
++    let u1 = g.maj(c,a[0].clone(),b[0].clone(),d[0].clone());
++    let u2 = g.maj(c,a[1].clone(),b[1].clone(),d[1].clone());
++    let u3 = g.maj(c,a[2].clone(),b[2].clone(),d[2].clone());
++    let s1 = a[1].x(&b[1]).x(&d[1]);
++    let s2 = a[2].x(&b[2]).x(&d[2]);
++    let r2 = g.and(c,s1,u1);
++    let r3 = g.maj(c,s2,u2,r2);
++    // Last carry is written directly to out to avoid retaining an eighth temp.
++    let aa = d[3].x(&r3); let bb = u3.x(&r3);
++    if aa.w.is_empty() || bb.w.is_empty() || aa.x(&bb).w.is_empty() {
++        let f = g.and(c,aa,bb).x(&r3); lin_xor_into(c,&f,out);
++    } else {
++        let (ha,hb)=lin_pair_on(c,&aa,&bb); c.ccx(ha,hb,out); lin_pair_off(c,&aa,&bb); lin_xor_into(c,&r3,out);
++    }
++    g.finish(c);
++}
++fn sr_digit(q: [QubitId;3]) -> [Lin;3] { q.map(|q|Lin::of(&[q])) }
++
++// Retained-DAG form for the choice, whose subsequent gates still need raw.
++fn sr_threshold_form(c:&mut Builder,g:&mut SrDag,a:[Lin;3],b:[Lin;3],cc:[Lin;3])->Lin {
++    if a.iter().chain(b.iter()).all(|v|v.w.is_empty()&&!v.one) {return Lin::k(false);}
++    let z=g.and(c,cc[0].clone(),cc[1].clone());let u=g.and(c,cc[2].clone(),z.clone());
++    let d=[sr_not(&cc[0]),cc[0].x(&cc[1]),sr_not(&cc[2].x(&z)),cc[2].x(&z).x(&u)];
++    let u1=g.maj(c,a[0].clone(),b[0].clone(),d[0].clone());
++    let u2=g.maj(c,a[1].clone(),b[1].clone(),d[1].clone());
++    let u3=g.maj(c,a[2].clone(),b[2].clone(),d[2].clone());
++    let r2=g.and(c,a[1].x(&b[1]).x(&d[1]),u1);
++    let r3=g.maj(c,a[2].x(&b[2]).x(&d[2]),u2,r2);
++    g.maj(c,d[3].clone(),u3,r3)
++}
++
++#[derive(Clone,Default)]
++struct SrGroup {
++    low: [Option<[QubitId;2]>;3],
++    high: [Option<QubitId>;3],
++    measured: Option<crate::circuit::BitId>,
++}
++thread_local! {
++    static SR_GROUPS: std::cell::RefCell<std::collections::HashMap<usize,SrGroup>> = std::cell::RefCell::new(std::collections::HashMap::new());
++}
++fn sr_open(c: &mut Builder,t:usize) {
++    let q=c.alloc_qubit();
++    SR_GROUPS.with(|m|{let mut m=m.borrow_mut();let f=m.entry(a2_tid(t)).or_default();let j=a2_pos(t)-1;assert!(f.high[j].replace(q).is_none());});
++}
++fn sr_high(t:usize)->QubitId { SR_GROUPS.with(|m|m.borrow()[&a2_tid(t)].high[a2_pos(t)-1].unwrap()) }
++fn sr_register(c:&mut Builder,t:usize,k1:QubitId,k2:QubitId) {
++    SR_GROUPS.with(|m| {let mut m=m.borrow_mut(); let f=m.get_mut(&a2_tid(t)).unwrap();assert!(f.low[a2_pos(t)-1].replace([k1,k2]).is_none());});
++    sr_pack(c,t);
++}
++fn sr_z(f:&SrGroup)->[QubitId;8] {
++    let a=f.low[0].unwrap();let b=f.low[1].unwrap();let d=f.low[2].unwrap();
++    [a[0],a[1],f.high[0].unwrap(),b[0],b[1],f.high[1].unwrap(),d[0],d[1]]
++}
++fn sr_pack(c:&mut Builder,t:usize) {
++    if !sr_tick(t) {return;}
++    let f=SR_GROUPS.with(|m|m.borrow()[&a2_tid(t)].clone());
++    if f.measured.is_some() || f.low.iter().any(Option::is_none) {return;}
++    let q=f.high[2].unwrap();let z=sr_z(&f);
++    for qz in z {c.cx(q,qz);}
++    let mb=c.alloc_bit();c.hmr(q,mb);c.release_clean(q);
++    SR_GROUPS.with(|m|{let mut m=m.borrow_mut();let f=m.get_mut(&a2_tid(t)).unwrap();f.high[2]=None;f.measured=Some(mb);});
++}
++fn sr_unpack(c:&mut Builder,t:usize) {
++    if !sr_tick(t) {return;}
++    let f=SR_GROUPS.with(|m|m.borrow()[&a2_tid(t)].clone());
++    let Some(mb)=f.measured else {return;};
++    let z=sr_z(&f);let q=c.alloc_qubit();
++    let before=c.active_qubits();
++    let ((),peak)=c.r3_peak(|c|sr_threshold(c,sr_digit([z[0],z[1],z[2]]),sr_digit([z[3],z[4],z[5]]),[Lin::of(&[z[6]]),Lin::of(&[z[7]]),Lin::k(false)],q));
++    if std::env::var_os("ROOM_TRACE").is_some(){eprintln!("SUM_UNPACK tick={t} before={before} peak={peak}");}
++    c.z_if(q,mb);c.free_bit(mb);
++    for qz in z {c.cx(q,qz);}
++    SR_GROUPS.with(|m|{let mut m=m.borrow_mut();let f=m.get_mut(&a2_tid(t)).unwrap();f.high[2]=Some(q);f.measured=None;});
++}
++fn sr_prefix(t:usize)->[[Lin;3];2] {
++    let mut a=std::array::from_fn(|_|std::array::from_fn(|_|Lin::k(false)));
++    SR_GROUPS.with(|m|{let m=m.borrow();let f=&m[&a2_tid(t)];assert!(f.measured.is_none());
++        for j in 0..a2_pos(t)-1 {let l=f.low[j].unwrap();a[j]=sr_digit([l[0],l[1],f.high[j].unwrap()]);}
++    });a
++}
++fn sr_consume(c:&mut Builder,t:usize)->QubitId {
++    sr_unpack(c,t);
++    SR_GROUPS.with(|m|{let mut m=m.borrow_mut();let f=m.get_mut(&a2_tid(t)).unwrap();let j=a2_pos(t)-1;f.low[j].take().unwrap();let q=f.high[j].take().unwrap();
++        // Position one must survive until its reverse choice phase has queried
++        // the empty prefix. Retire the empty group at the next forward open.
++        q
++    })
++}
++fn sr_empty()->bool { SR_GROUPS.with(|m|m.borrow().values().all(|f|f.low.iter().all(Option::is_none)&&f.high.iter().all(Option::is_none)&&f.measured.is_none())) }
++
++fn sr_raw(c:&mut Builder,z:&[QubitId])->(SrDag,[Lin;3],Lin) {
++    let mut g=SrDag::default();let cap=z.len()-2;assert!((2..=8).contains(&cap));
++    let mut p=vec![Lin::k(true),sr_not(&Lin::of(&[z[2]]))];
++    for i in 3..=8 {let v=if i<=cap{g.and(c,p.last().unwrap().clone(),sr_not(&Lin::of(&[z[i]])))}else{p.last().unwrap().clone()};p.push(v);}
++    let raw=[p.iter().fold(Lin::k(false),|a,b|a.x(b)),p[1].x(&p[3]).x(&p[5]).x(&p[7]),p[3].x(&p[7])];
++    (g,raw,sr_not(&p[7]))
++}
++fn sr_veto(c:&mut Builder,z:&[QubitId],nf:QubitId,ad:QubitId,y:&Lin)->(SrDag,Lin) {
++    let mut g=SrDag::default();let z2=Lin::of(&[z[2]]);
++    let bad2=g.and(c,z2.clone(),Lin::of(&[nf]));
++    let v3=if z.len()-2>=3{g.and(c,sr_not(&z2),Lin::of(&[z[3]]))}else{Lin::k(false)};
++    let bad3=g.and(c,v3,Lin::of(&[ad]));
++    let q=g.and(c,Lin::of(&[*z.last().unwrap()]),sr_not(y));
++    let veto=g.and(c,q,bad2.x(&bad3));(g,veto)
++}
++// Low-space form for the last N2 rails-only steps. The output digit wires
++// temporarily hold the unconditional raw exponent, so the six valuation
++// helpers can leave before the budget arithmetic. Recomputing that short
++// prefix costs gates but avoids increasing the full circuit's qubit peak.
++fn sr_choice_low(c:&mut Builder,z:&[QubitId],nf:QubitId,ad:QubitId,y:Lin,prefix:[[Lin;3];2],outs:Option<(QubitId,QubitId,QubitId,QubitId)>) {
++    let digits=match outs{Some((_,a,b,d))=>[a,b,d],None=>[c.alloc_qubit(),c.alloc_qubit(),c.alloc_qubit()]};
++    let (g,raw,valid)=sr_raw(c,z);
++    for (f,q) in raw.iter().zip(digits){lin_xor_into(c,f,q);}
++    if let Some((out,_,_,_))=outs{lin_xor_into(c,&valid,out);}else{sr_phase_lin(c,&valid.x(&Lin::of(&[z[1]])),z[1]);}
++    g.finish(c);
++    let over=c.alloc_qubit();sr_threshold(c,prefix[0].clone(),prefix[1].clone(),sr_digit(digits),over);
++    let (vg,veto)=sr_veto(c,z,nf,ad,&y);
++    let ov=Lin::of(&[over]);
++    // Both veto and over imply valid. Thus D = valid XOR veto XOR over XOR
++    // veto*over. All sources remain unchanged until their cleanup finishes.
++    if let Some((out,_,_,_))=outs{lin_xor_into(c,&veto.x(&ov),out);sr_and_into(c,&veto,&ov,out);}
++    else{sr_phase_lin(c,&veto.x(&ov),z[1]);sr_phase_product(c,&veto,&ov,z[1]);}
++    vg.finish(c);
++    sr_threshold(c,prefix[0].clone(),prefix[1].clone(),sr_digit(digits),over);c.release_clean(over);
++    let (g,raw,_)=sr_raw(c,z);
++    if let Some((out,_,_,_))=outs{
++        for (f,q) in raw.iter().zip(digits){sr_and_into(c,&sr_not(&Lin::of(&[out])),f,q);}
++        c.cx(z[1],out);
++    }else{for(f,q)in raw.iter().zip(digits){lin_xor_into(c,f,q);c.release_clean(q);}}
++    g.finish(c);
++}
++
++// Core choice oracle. z is the existing low-bit deep-candidate transform.
++// This keeps the pinned window/flag preference, changing only admissibility.
++fn sr_choice_z(c:&mut Builder,z:&[QubitId],not_flipped:QubitId,added:QubitId,y:Lin,prefix:[[Lin;3];2],outs:Option<(QubitId,QubitId,QubitId,QubitId)>) {
++    let mut g=SrDag::default();
++    let mut p:Vec<Lin>=vec![Lin::k(true),sr_not(&Lin::of(&[z[2]]))];
++    let cap=z.len()-2;assert!((2..=8).contains(&cap));
++    for i in 3..=8 {let v=if i<=cap{g.and(c,p.last().unwrap().clone(),sr_not(&Lin::of(&[z[i]])))}else{p.last().unwrap().clone()};p.push(v);}
++    // p[j-1] is P_j, P_1=1, P_j=AND(!z_2,...,!z_j).
++    let raw=[p.iter().fold(Lin::k(false),|a,b|a.x(b)),p[1].x(&p[3]).x(&p[5]).x(&p[7]),p[3].x(&p[7])];
++    let valid=sr_not(&p[7]);
++    let over=sr_threshold_form(c,&mut g,prefix[0].clone(),prefix[1].clone(),raw.clone());
++    let v2=sr_not(&p[1]);let v3=p[1].x(&p[2]);
++    let bad2=g.and(c,v2,Lin::of(&[not_flipped]));
++    let bad3=g.and(c,v3,Lin::of(&[added]));
++    let q=g.and(c,Lin::of(&[*z.last().unwrap()]),sr_not(&y));
++    let veto=g.and(c,q,bad2.x(&bad3));
++    // A veto only occurs at v=2 or 3, both valid: valid & !veto = valid XOR veto.
++    let deep=g.and(c,valid.x(&veto),sr_not(&over));
++    match outs {
++        Some((o,k1,k2,k3))=>{lin_xor_into(c,&deep.x(&Lin::of(&[z[1]])),o);
++            for (raw,k) in raw.iter().zip([k1,k2,k3]) {sr_and_into(c,&deep,raw,k);}
++        }
++        None=>{let v=deep.x(&Lin::of(&[z[1]]));for q in v.w {c.z_if(q,NO_BIT);}if v.one{c.x(z[1]);c.z_if(z[1],NO_BIT);c.x(z[1]);c.z_if(z[1],NO_BIT);}}
++    }
++    // Every helper retains its parents until its own MBU phase is removed.
++    g.finish(c);
++}
++
++fn sr_logic(c:&mut Builder,t2:&[QubitId],b:&[QubitId],s1:QubitId,ct:QubitId,tick:usize,outs:Option<(QubitId,QubitId,QubitId,QubitId)>) {
++    let before=c.active_qubits();let ((),peak)=c.r3_peak(|c|{
++    // A nonzero sum/difference of odd signed n-bit rails has valuation < n.
++    // At n<=2 the deep candidate is zero, so only the shallow choice exists.
++    if t2.len()<=1 {
++        c.cx(b[0],t2[0]);match outs{Some((o,_,_,_))=>c.cx(t2[0],o),None=>c.z_if(t2[0],NO_BIT)}c.cx(b[0],t2[0]);return;
++    }
++    let need0=w1_anchor(tick)<=w1_kt(tick);
++    let mut tv=Vec::new();let mut bv=Vec::new();
++    for (v,src) in [(&mut tv,t2),(&mut bv,b)] {if need0 {let q=c.alloc_qubit();c.x(q);v.push(q);}else{v.push(src[0]);}v.extend_from_slice(src);}
++    let bview=bv[..bv.len().min(tv.len())].to_vec();let top=tv.len()-1;let btop=*bview.last().unwrap();let cap=top.min(8);
++    let (wa,wb)=(w1_window(&tv,tick),w1_window(&bview,tick));
++    w1_conj(c,&tv,&wa);w1_conj(c,&bview,&wb);let (w,recs)=w1_chain_s(c,&wa,&wb,1);w1_conj(c,&bview,&wb);w1_conj(c,&tv,&wa);
++    c.cx(ct,s1);c.cx(btop,s1);c.x(s1);c.cx(tv[top],ct);c.x(ct);
++    c.cx(bview[1],tv[1]);
++    // Keep E separately when the sign bit itself is part of the valuation
++    // window; no physical sign-padding wires are needed.
++    let extra=top<=cap;let eq=if extra{c.alloc_qubit()}else{tv[top]};if extra{c.cx(tv[top],eq);}c.cx(btop,eq);c.cx(tv[1],eq);
++    for i in 2..=cap {c.cx(bview[i.min(bview.len()-1)],tv[i]);c.cx(tv[1],tv[i]);}
++    let mut z=tv[..=cap].to_vec();z.push(eq);
++    if tick>=114 {sr_choice_low(c,&z,s1,ct,sr_lit(w),sr_prefix(tick),outs);}else{sr_choice_z(c,&z,s1,ct,sr_lit(w),sr_prefix(tick),outs);}
++    for i in (2..=cap).rev(){c.cx(tv[1],tv[i]);c.cx(bview[i.min(bview.len()-1)],tv[i]);}
++    c.cx(tv[1],eq);c.cx(btop,eq);if extra{c.cx(tv[top],eq);c.release_clean(eq);}c.cx(bview[1],tv[1]);
++    c.x(ct);c.cx(tv[top],ct);c.x(s1);c.cx(btop,s1);c.cx(ct,s1);
++    w1_conj(c,&tv,&wa);w1_conj(c,&bview,&wb);erase_recs(c,recs);w1_conj(c,&bview,&wb);w1_conj(c,&tv,&wa);
++    if need0 {for q in [bv[0],tv[0]] {c.x(q);c.release_clean(q);}}
++    });if std::env::var_os("ROOM_TRACE").is_some(){eprintln!("SUM_CHOICE tick={tick} forward={} before={before} peak={peak}",outs.is_some());}
++}
++
++#[cfg(test)]
++mod sr_tests {
++    use super::*;
++    use crate::sim::Simulator;
++    use sha3::digest::XofReader;
++    struct Fixed { mask:u64, n:usize }
++    impl XofReader for Fixed { fn read(&mut self,o:&mut[u8]) {assert_eq!(o.len(),8);let q=if self.mask.rotate_right((self.n%64) as u32)&1!=0{u64::MAX}else{0};o.copy_from_slice(&q.to_le_bytes());self.n+=1;} }
++    fn run(ops:&[crate::circuit::Op],dims:(usize,usize),ins:&[u32],ni:usize,mask:u64)->(Vec<u64>,u64) {
++        let mut rng=Fixed{mask,n:0};let mut s=Simulator::new(dims.0,dims.1,&mut rng);
++        for (i,&x) in ins.iter().enumerate(){for q in 0..ni {if x>>q&1!=0{s.qubits[q]|=1<<i;}}}
++        s.apply_iter(ops.iter());(s.qubits,s.phase)
++    }
++    fn bits(q:&[u64],i:usize,qs:&[QubitId])->u32 {qs.iter().enumerate().map(|(j,w)|(((q[w.0 as usize]>>i)&1) as u32)<<j).sum()}
++    #[test]
++    fn sum_record_threshold_and_lifecycle() {
++        let mut c=Builder::new();let q=c.alloc_qubits(10);
++        sr_threshold(&mut c,sr_digit([q[0],q[1],q[2]]),sr_digit([q[3],q[4],q[5]]),sr_digit([q[6],q[7],q[8]]),q[9]);
++        let dims=c.i13_dims();let ops=c.take_ops();let inputs:Vec<u32>=(0..512).collect();let mut cases=0;
++        for mask in 0..128 {for b in inputs.chunks(64) {let (v,p)=run(&ops,dims,b,9,mask);assert_eq!(p,0);
++            for (i,&x) in b.iter().enumerate(){assert_eq!(bits(&v,i,&q[..9]),x);assert_eq!(bits(&v,i,&q[9..]),u32::from((x&7)+((x>>3)&7)+((x>>6)&7)>=11));assert!(v[10..].iter().all(|q|(q>>i)&1==0));cases+=1;}
++        }}
++        SR_GROUPS.with(|m|m.borrow_mut().clear());let mut c=Builder::new();let q=c.alloc_qubits(9);
++        SR_GROUPS.with(|m|m.borrow_mut().insert(a2_tid(6),SrGroup{low:[Some([q[0],q[1]]),Some([q[3],q[4]]),Some([q[6],q[7]])],high:[Some(q[2]),Some(q[5]),Some(q[8])],measured:None}));
++        sr_pack(&mut c,10);assert_eq!(c.active_qubits(),8);sr_unpack(&mut c,10);assert_eq!(c.active_qubits(),9);
++        let f=SR_GROUPS.with(|m|m.borrow()[&a2_tid(6)].clone());let z=sr_z(&f);let outputs=[z[0],z[1],z[2],z[3],z[4],z[5],z[6],z[7],f.high[2].unwrap()];
++        let dims=c.i13_dims();let ops=c.take_ops();let allowed:Vec<u32>=(0..512).filter(|&x|(x&7)+((x>>3)&7)+((x>>6)&7)<=10).collect();assert_eq!(allowed.len(),256);
++        for mask in 0..128 {for b in allowed.chunks(64) {let (v,p)=run(&ops,dims,b,9,mask);assert_eq!(p,0);for (i,&x) in b.iter().enumerate(){assert_eq!(bits(&v,i,&outputs),x);for (j,&v) in v.iter().enumerate(){if !outputs.contains(&QubitId(j as u64)){assert_eq!((v>>i)&1,0);}}cases+=1;}}}
++        SR_GROUPS.with(|m|m.borrow_mut().clear());
++        eprintln!("SUM_RECORD_THRESHOLD_LIFECYCLE cases={cases} all_measurement_branches=true");
++    }
++    #[test]
++    fn sum_record_valuation_bound() {
++        let mut cases=0;
++        for n in 2..=9 {
++            for a in (-(1i32<<(n-1))+1..1i32<<(n-1)).step_by(2) {
++                for b in (-(1i32<<(n-1))+1..1i32<<(n-1)).step_by(2) {
++                    let dq=((a>>1)^(b>>1))&1;let x=if dq==1{a+b}else{a-b};
++                    let cap=(n-1).min(8);
++                    let z=(2..=cap).find(|i|((a>>i)^(b>>i)^dq)&1!=0);
++                    if x==0 {assert_eq!(z,None);} else {let v=x.unsigned_abs().trailing_zeros();assert!(v<n);assert_eq!(z,Some(v));}
++                    cases+=1;
++                }
++            }
++        }
++        eprintln!("SUM_RECORD_VALUATION_BOUND cases={cases}");
++    }
++    #[test]
++    fn sum_record_choice() {
++        let mut inputs=Vec::new();
++        // z[0] is an unused odd-bit placeholder; z1=dq, z2..8=deep low bits,
++        // z9=E, followed by not-flipped, added, Y, and two 3-bit exponents.
++        for e0 in 0..8u32 {for e1 in 0..8u32 {if e0+e1>10{continue;}for z in 0..512u32 {for flags in 0..8u32 {inputs.push((z<<1)|(flags<<10)|(e0<<13)|(e1<<16));}}}}
++        let mut cases=0;
++        for lowspace in [false,true] { for cap in [2,3,4,6,8] { for phase in [false,true] {
++            let mut c=Builder::new();let q=c.alloc_qubits(23);
++            let mut zz=q[..=cap].to_vec();zz.push(q[9]);
++            let choice=if lowspace{sr_choice_low}else{sr_choice_z};
++            choice(&mut c,&zz,q[10],q[11],Lin::of(&[q[12]]),[sr_digit([q[13],q[14],q[15]]),sr_digit([q[16],q[17],q[18]])],if phase{None}else{Some((q[19],q[20],q[21],q[22]))});
++            let dims=c.i13_dims();let ops=c.take_ops();
++            for mask in [0,u64::MAX,0x5555555555555555,0x0123456789abcdef,0x13579bdf2468ace0,0xf0f00f0ff00f0ff0,0xa1b2c3d4e5f67890,0x3141592653589793] {
++                for b in inputs.chunks(64) {let (v,p)=run(&ops,dims,b,19,mask);let mut want_phase=0;
++                    for (i,&x) in b.iter().enumerate(){let val=((x>>2)&127).trailing_zeros() as u32+2;let e=val-1;let eq=x>>9&1!=0;let nf=x>>10&1!=0;let ad=x>>11&1!=0;let y=x>>12&1!=0;
++                        let admit=val<=cap as u32&&((x>>13)&7)+((x>>16)&7)+e<=10;
++                        let veto=eq&&!y&&((val==2&&nf)||(val==3&&ad));let deep=admit&&!veto;
++                        let o=(x>>1&1)^u32::from(deep);let want=o|if deep{e<<1}else{0};
++                        assert_eq!(bits(&v,i,&q[..19]),x);
++                        if phase {want_phase|=(o as u64)<<i;assert_eq!(bits(&v,i,&q[19..23]),0);}else{assert_eq!(bits(&v,i,&q[19..23]),want,"choice x={x:x}");}
++                        assert!(v[23..].iter().all(|q|(q>>i)&1==0));cases+=1;
++                    }
++                    assert_eq!(p,want_phase,"choice phase oracle={phase}");
++                }
++            }
++        }
++        }
++        }
++        eprintln!("SUM_RECORD_CHOICE cases={cases} inputs={} phase_and_value=true",inputs.len());
++    }
++}
+--- a/src/point_add/y15_onefold.rs
++++ b/src/point_add/y15_onefold.rs
+@@ -2511 +2511,5 @@
+-            if swap01 { kk1 + Y15_GUARD + kk1 - 1 } else { k0 + Y15_GUARD + k0 - 1 + if close { kwin + Y20_G2 } else { 0 } },
++            if std::env::var("STRUCTURAL_COMPARE_TRANSPORT").ok().as_deref() == Some("1") {
++                // Hybrid comparison has a one-clean-carry minimum. Its source
++                // and accumulator wires temporarily carry the remaining chain.
++                if swap01 { kk1 + Y15_GUARD + 1 } else { k0 + Y15_GUARD + 1 + if close { kwin + Y20_G2 } else { 0 } }
++            } else if swap01 { kk1 + Y15_GUARD + kk1 - 1 } else { k0 + Y15_GUARD + k0 - 1 + if close { kwin + Y20_G2 } else { 0 } },
+@@ -3213 +3217 @@
+-    assert_eq!(c.active_qubits(),a_start+u32::from(frame_delayed),"y15: a wire was left behind");
++    assert_eq!(c.active_qubits(),a_start+u32::from(frame_delayed && !super::sr_tick(t)),"y15: a wire was left behind");
+@@ -3356 +3360,7 @@
+-    assert!(phi >= go_fs("GO_FG_P") + 5 && phi < N, "T0C: the identity needs phi - 4 above the halving window");
++    assert!(phi >= 2 && phi < N);
++    if phi < go_fs("GO_FG_P") + 5 {
++        // The optimized shifted-column identity is unavailable here. Recover
++        // the exact carry from the complete written sum and addend prefixes.
++        super::super::compare::erase_with_compare(c, q, &tg[..phi], &b[..phi], None);
++        return;
++    }
+--- a/src/point_add/y15_a2.rs
++++ b/src/point_add/y15_a2.rs
+@@ -487 +487 @@
+-    let fold_need = a_fixed(emax) - f_own_sheds(emax) + a_min_budget(nbits) - f_page5_room_credit(emax);
++    let fold_need = a_fixed(emax) - f_own_sheds(emax) + f_min_budget(nbits) - f_page5_room_credit(emax);
+@@ -552 +552 @@
+-        assert_eq!(c.active_qubits() + 1, before_k3, "a2: owned k3 retires exactly one owner");
++        assert_eq!(c.active_qubits() + u32::from(!super::sr_tick(t)), before_k3, "a2: owned k3 retires exactly one owner");
+@@ -591 +591 @@
+-    assert_eq!(c.active_qubits(), a_start - u32::from(owns_k3), "a2: the reverse A tick violated its k3 ownership return");
++    assert_eq!(c.active_qubits(), a_start - u32::from(owns_k3 && !super::sr_tick(t)), "a2: the reverse A tick violated its k3 ownership return");
+--- a/src/point_add/y15_fold_core.rs
++++ b/src/point_add/y15_fold_core.rs
+@@ -909 +909,13 @@
+-            lin_and(c, &g[j], &l(acc[j]))
++            let yq = lin_and(c, &g[j], &l(acc[j]));
++            if early_g7 && j == 7 {
++                assert!(emax == 7 && ngate == 4);
++                let (old, a, b) = match &pre[1] { Rec::And(q,a,b) => (*q,a.clone(),b.clone()), _ => unreachable!() };
++                lin_and_erase(c, old, &a, &b);
++                let ghost=f_ghost();
++                y18_subst(&mut pre,old,ghost);y18_subst(&mut qser,old,ghost);y18_subst(&mut trec,old,ghost);
++                for (a,b) in yer.iter_mut(){f_sub(a,old,ghost);f_sub(b,old,ghost);}
++                for f in g.iter_mut().chain(k.iter_mut()).chain(qb.iter_mut()).chain(add_lo.iter_mut()){f_sub(f,old,ghost);}
++                f_sub(&mut q,old,ghost);f_sub(&mut t,old,ghost);
++                assert!(!g[8].w.contains(&ghost)&&!g[9].w.contains(&ghost));
++            }
++            yq
+@@ -991 +1003,2 @@
+-const F_DROPS: [&[usize]; 2] = [&[0], &[0, 2]];
++// Nonadjacent drops preserve each dropped carry's reconstruction dependency.
++const F_DROPS: [&[usize]; 7] = [&[0], &[0,2], &[0,2,4], &[0,2,4,6], &[0,2,4,6,8], &[0,2,4,6,8,10], &[0,2,4,6,8,10,12]];
+@@ -1043 +1056 @@
+-    let pebble = PAYLOAD_AT.with(|x| x.get().is_some_and(|(rev,t)| !rev && (115..=120).contains(&t)));
++    let pebble = (emax == 7 && gsh == 3 && lev >= 7) || PAYLOAD_AT.with(|x| x.get().is_some_and(|(rev,t)| !rev && (115..=120).contains(&t)));
+@@ -1048 +1060,0 @@
+-                && PAYLOAD_AT.with(|x| x.get() == Some((false, 115)))
+@@ -1199 +1211 @@
+-    let sh = f_sheds(emax, nbits, at_ladder, f_ngate(emax), true, false);
++    let sh = f_sheds(emax, nbits, at_ladder, f_ngate(emax), true, true);
+@@ -1222 +1234 @@
+-    let (mut d, _, mut add_lo) = f_inv_phase(c, "digit", |c| f_digit(c, acc, nm, k1, k2, k3, emax, c3, c4, false, lev));
++    let (mut d, _, mut add_lo) = f_inv_phase(c, "digit", |c| f_digit_pebble(c, acc, nm, k1, k2, k3, emax, c3, c4, false, lev, emax == 7 && gsh == 3 && lev >= 7));
+@@ -1252 +1264 @@
+-    let page5 = f_inv_phase(c, "page_out", |c| f_page5_out(c, &mut post, &mut add, emax, f_final_plan(nbits, unpaged_budget, false).is_none()));
++    let page5 = f_inv_phase(c, "page_out", |c| f_page5_out(c, &mut post, &mut add, emax, f_final_plan(nbits, unpaged_budget, true).is_none()));
+@@ -1255 +1267 @@
+-    let (plan, _) = f_final_plan(nbits, budget, false).unwrap_or_else(|| panic!("fold-core: the inverse IPK fold's ladder does not fit: budget {budget}, need {}, active {}, cap {}, lev {lev}", a_min_budget(nbits), c.active_qubits(), cells::cap()));
++    let (plan, drops) = f_final_plan(nbits, budget, true).unwrap_or_else(|| panic!("fold-core: the inverse IPK fold's ladder does not fit: budget {budget}, need {}, active {}, cap {}, lev {lev}", a_min_budget(nbits), c.active_qubits(), cells::cap()));
+@@ -1257 +1269,14 @@
+-    f_inv_phase(c, "ladder_all", |c| a_ladder_inv(c, acc, &add, kx, ckx, &plan));
++    f_inv_phase(c, "ladder_all", |c| {
++        if drops.is_empty() { a_ladder_inv(c, acc, &add, kx, ckx, &plan); }
++        else {
++            // x - a - carry = NOT(NOT(x) + a + carry) modulo 2^n.
++            // The upper addend forms and incoming carry must be independent
++            // of the complemented target wires; check this structurally.
++            assert!(!acc[kx..].contains(&ckx));
++            assert!(add[kx..].iter().all(|f| f.w.iter().all(|q| !acc[kx..].contains(q))));
++            eprintln!("INVERSE_CARRY_DROP bits={nbits} budget={budget} drops={drops:?} plan={plan:?}");
++            c.x_all(&acc[kx..]);
++            ladder_d(c, acc, &add, kx, ckx, &plan, &drops);
++            c.x_all(&acc[kx..]);
++        }
++    });
+@@ -1286 +1311 @@
+-    f_inv_phase(c, "digit_restore", |c| f_restore(c, acc, nm, emax, &mut d, c3n, &mut add_lo, true));
++    f_inv_phase(c, "digit_restore", |c| f_restore(c, acc, nm, emax, &mut d, c3n, &mut add_lo, false));
+@@ -1301,0 +1327,8 @@
++    // The serial carry sweep needs neither low parent. Retire only as many
++    // as the measured allocation bound requires, then rebuild at final cleanup.
++    // fin3 lazy return rebuilds tt and a gate after releasing only one carry.
++    let return_extra = usize::from(lazy_gates && fin3_lazy);
++    let parent_drop = (c.active_qubits() as usize + kx - 5 + return_extra).saturating_sub(cells::cap()).min(2);
++    if parent_drop >= 1 { maj_wire_erase(c, c2, &l(acc[1]), &l(e[1]), &l(c1)); }
++    if parent_drop >= 2 { lin_and_erase(c, c1, &l(acc[0]), &l(e[0])); }
++    if parent_drop > 0 { eprintln!("INVERSE_PARENT_DROP count={parent_drop}"); }
+@@ -1317 +1350 @@
+-        f_pop(c, d.trec[j - 3].take().unwrap());
++        if let Some(rec) = d.trec[j - 3].take() { f_pop(c, rec); }
+@@ -1346,0 +1380,2 @@
++    let c1 = if parent_drop >= 2 { lin_and(c, &l(acc[0]), &l(e[0])) } else { c1 };
++    let c2 = if parent_drop >= 1 { maj_wire(c, &l(acc[1]), &l(e[1]), &l(c1)) } else { c2 };
+@@ -1600,0 +1636,16 @@
++    #[test]
++    fn f_fold_reschedule() {
++        let lowb: usize = std::env::var("LFF_EXH").ok().and_then(|v| v.parse().ok()).unwrap_or(8);
++        for mw in [57usize, 56] {
++            for emax in [5usize, 6, 7] {
++                let inp = inputs(emax, mw, 0, Some(lowb), 0x5eed ^ emax as u64 ^ (mw as u64) << 8);
++                let least = a_min_budget(mw - 3 - emax) as isize - own_max(emax) as isize;
++                let (nb, mb) = (mw - 3 - emax, a_min_budget(mw - 3 - emax));
++                for extra in 0..=2usize {
++                    if extra == 0 || F_DROPS.iter().any(|ds| f_drop_plan(nb, mb - extra, ds).is_some()) {
++                        for fin in [2,3] { for fwd in [true,false] { check_f(fwd, emax, mw, least - extra as isize, fin, &inp); } }
++                    }
++                }
++            }
++        }
++    }
+--- /dev/null
++++ b/src/point_add/adjacent_factor.rs
+@@ -0,0 +1,274 @@
++//! Exact factoring of nearby Toffoli gates with a shared control and target.
++//!
++//! CCX(a,b,t); CCX(a,c,t) equals CX(b,c); CCX(a,c,t); CX(b,c):
++//! a*b XOR a*c = a*(b XOR c). All four wires are distinct. The borrowed
++//! control c is restored, including when it starts dirty or entangled.
++//! Every replacement inherits the same classical condition. Adjacency means
++//! the surrounding condition stack is also unchanged. No phase gates,
++//! measurements, fresh qubits, or input-dependent assumptions are introduced.
++
++use crate::circuit::{Op, OperationType as K, NO_BIT, NO_QUBIT, NO_REG};
++
++fn replacement(left: Op, right: Op) -> Option<[Op; 3]> {
++    if left.kind != K::CCX || right.kind != K::CCX
++        || left.q_target != right.q_target
++        || left.c_condition != right.c_condition
++    {
++        return None;
++    }
++    for op in [left, right] {
++        if op.c_target != NO_BIT || op.r_target != NO_REG
++            || [op.q_control1, op.q_control2, op.q_target].contains(&NO_QUBIT)
++            || op.q_control1 == op.q_control2
++            || op.q_target == op.q_control1 || op.q_target == op.q_control2
++        {
++            return None;
++        }
++    }
++    let a = [left.q_control1, left.q_control2];
++    let b = [right.q_control1, right.q_control2];
++    let common = a.iter().copied().find(|q| b.contains(q))?;
++    let other_left = a.iter().copied().find(|q| *q != common)?;
++    let other_right = b.iter().copied().find(|q| *q != common)?;
++    if other_left == other_right { return None; }
++
++    let mut xor = Op::empty();
++    xor.kind = K::CX;
++    xor.q_control1 = other_left;
++    xor.q_target = other_right;
++    xor.c_condition = left.c_condition;
++    let mut product = left;
++    product.q_control1 = common;
++    product.q_control2 = other_right;
++    Some([xor, product, xor])
++}
++
++// Two controlled-X gates commute if neither target is a control of the
++// other. Their classical conditions are read-only throughout the window.
++// No phase, reset, measurement, bit write, or stack operation is crossed.
++fn commutes_with_ccx(middle: Op, right: Op) -> bool {
++    if !matches!(middle.kind, K::X | K::CX | K::CCX) { return false; }
++    if middle.q_target == right.q_control1 || middle.q_target == right.q_control2 { return false; }
++    if matches!(middle.kind, K::CX | K::CCX) && middle.q_control1 == right.q_target { return false; }
++    if middle.kind == K::CCX && middle.q_control2 == right.q_target { return false; }
++    true
++}
++
++fn find_pair(ops: &[Op], start: usize) -> Option<(usize, [Op; 3])> {
++    if ops[start].kind != K::CCX { return None; }
++    const WINDOW: usize = 32;
++    for end in start + 1..ops.len().min(start + WINDOW) {
++        if let Some(gates) = replacement(ops[start], ops[end]) {
++            if ops[start + 1..end].iter().all(|m| commutes_with_ccx(*m, ops[end])) {
++                return Some((end, gates));
++            }
++        }
++        if !matches!(ops[end].kind, K::X | K::CX | K::CCX) { break; }
++    }
++    None
++}
++
++pub(super) fn run(ops: Vec<Op>) -> Vec<Op> {
++    // Reserve the exact expansion so Vec never doubles a large op buffer.
++    let mut count = 0usize;
++    let mut scan = 0;
++    while scan + 1 < ops.len() {
++        if let Some((end, _)) = find_pair(&ops, scan) {
++            count += 1;
++            scan = end + 1;
++        } else {
++            scan += 1;
++        }
++    }
++    if count == 0 {
++        eprintln!("ADJACENT_FACTOR pairs=0 Toffoli_removed=0 extra_CNOTs=0");
++        return ops;
++    }
++    let mut out = Vec::with_capacity(ops.len() + count);
++    let mut i = 0;
++    let mut factored = 0usize;
++    while i < ops.len() {
++        if i + 1 < ops.len() {
++            if let Some((end, gates)) = find_pair(&ops, i) {
++                out.extend_from_slice(&gates);
++                out.extend_from_slice(&ops[i + 1..end]);
++                i = end + 1;
++                factored += 1;
++                continue;
++            }
++        }
++        out.push(ops[i]);
++        i += 1;
++    }
++    eprintln!("ADJACENT_FACTOR pairs={factored} Toffoli_removed={factored} extra_CNOTs={}", 2 * factored);
++    out
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::circuit::{BitId, QubitId};
++    use crate::sim::Simulator;
++    use sha3::{digest::ExtendableOutput, Shake256};
++
++    fn ccx(a: u64, b: u64, target: u64, condition: BitId) -> Op {
++        let mut op = Op::empty();
++        op.kind = K::CCX;
++        op.q_control1 = QubitId(a);
++        op.q_control2 = QubitId(b);
++        op.q_target = QubitId(target);
++        op.c_condition = condition;
++        op
++    }
++
++    // This includes dirty borrowed controls, both target values, all control
++    // orderings, classical enable/disable, and a surrounding condition stack.
++    // Pure CX/CCX permutations have no phase terms: exhaustive basis equality
++    // therefore also establishes equality on arbitrary superpositions.
++    #[test]
++    fn exhaustive_basis_conditions_and_inverse() {
++        for a in 0..4 {
++            for b in 0..4 {
++                for c in 0..4 {
++                    for target in 0..4 {
++                        if a == b || a == c || a == target || b == c || b == target || c == target { continue; }
++                        for swapped_left in [false, true] {
++                            for swapped_right in [false, true] {
++                                for condition in [NO_BIT, BitId(0)] {
++                                    let left = if swapped_left { ccx(b,a,target,condition) } else { ccx(a,b,target,condition) };
++                                    let right = if swapped_right { ccx(c,a,target,condition) } else { ccx(a,c,target,condition) };
++                                    let replacement = replacement(left, right).expect("factorable");
++                                    for gate in replacement { gate.validate(); }
++                                    for bits in 0..4u64 {
++                                        for state in 0..16u64 {
++                                            let mut rng1 = Shake256::default().finalize_xof();
++                                            let mut rng2 = Shake256::default().finalize_xof();
++                                            let mut original = Simulator::new(4, 2, &mut rng1);
++                                            let mut optimized = Simulator::new(4, 2, &mut rng2);
++                                            for q in 0..4 {
++                                                let value = if (state >> q) & 1 == 1 { u64::MAX } else { 0 };
++                                                original.qubits[q] = value;
++                                                optimized.qubits[q] = value;
++                                            }
++                                            for bit in 0..2 {
++                                                let value = if (bits >> bit) & 1 == 1 { u64::MAX } else { 0 };
++                                                original.bits[bit] = value;
++                                                optimized.bits[bit] = value;
++                                            }
++                                            let initial = optimized.qubits.clone();
++                                            let mut push = Op::empty();
++                                            push.kind = K::PushCondition;
++                                            push.c_condition = BitId(1);
++                                            let mut pop = Op::empty();
++                                            pop.kind = K::PopCondition;
++                                            original.apply_iter([push,left,right,pop].iter());
++                                            let forward = [push,replacement[0],replacement[1],replacement[2],pop];
++                                            optimized.apply_iter(forward.iter());
++                                            assert_eq!(original.qubits, optimized.qubits);
++                                            assert_eq!(original.bits, optimized.bits);
++                                            assert_eq!(original.phase, 0);
++                                            assert_eq!(optimized.phase, 0);
++                                            assert_eq!(original.stats.toffoli_gates, 2 * optimized.stats.toffoli_gates);
++                                            let inverse = [push,replacement[2],replacement[1],replacement[0],pop];
++                                            optimized.apply_iter(inverse.iter());
++                                            assert_eq!(optimized.qubits, initial);
++                                        }
++                                    }
++                                }
++                            }
++                        }
++                    }
++                }
++            }
++        }
++    }
++
++    #[test]
++    fn rejects_unsafe_or_nonmatching_pairs() {
++        let left = ccx(0, 1, 3, NO_BIT);
++        for right in [ccx(0,2,4,NO_BIT), ccx(0,2,3,BitId(0)), ccx(0,1,3,NO_BIT), ccx(2,4,3,NO_BIT), ccx(0,3,3,NO_BIT)] {
++            assert!(replacement(left, right).is_none());
++        }
++        let mut phase_gate = ccx(0,2,3,NO_BIT);
++        phase_gate.kind = K::CCZ;
++        assert!(replacement(left, phase_gate).is_none());
++    }
++
++    #[test]
++    fn preserves_barriers_and_nonoverlapping_order() {
++        let left = ccx(0,1,3,NO_BIT);
++        let right = ccx(0,2,3,NO_BIT);
++        let mut barrier = Op::empty();
++        barrier.kind = K::BitStore0;
++        barrier.c_target = BitId(0);
++        let untouched = vec![left,barrier,right];
++        assert_eq!(run(untouched.clone()), untouched);
++        let expected = replacement(left,right).unwrap();
++        let result = run(vec![left,right,barrier,left,right]);
++        assert_eq!(result, [expected.as_slice(), &[barrier], expected.as_slice()].concat());
++    }
++
++    #[test]
++    fn exhaustive_commuting_windows() {
++        let left = ccx(0,1,3,BitId(0));
++        let right = ccx(0,2,3,BitId(0));
++        let mut checked = 0;
++        let mut moved = 0;
++        for kind in [K::X, K::CX, K::CCX] {
++            for target in 0..5 {
++                for a in 0..5 {
++                    for b in 0..5 {
++                        if (kind == K::X && (a != 0 || b != 0))
++                            || (kind == K::CX && (a == target || b != 0))
++                            || (kind == K::CCX && (a == b || a == target || b == target)) { continue; }
++                        let mut middle = Op::empty();
++                        middle.kind = kind;
++                        middle.q_target = QubitId(target);
++                        middle.c_condition = BitId(1);
++                        if kind != K::X { middle.q_control1 = QubitId(a); }
++                        if kind == K::CCX { middle.q_control2 = QubitId(b); }
++                        middle.validate();
++                        let original_ops = vec![left,middle,right];
++                        let optimized_ops = if commutes_with_ccx(middle,right) {
++                            assert!(find_pair(&original_ops,0).is_some());
++                            moved += 1;
++                            run(original_ops.clone())
++                        } else {
++                            assert!(find_pair(&original_ops,0).is_none());
++                            original_ops.clone()
++                        };
++                        for bits in 0..4u64 {
++                            for state in 0..32u64 {
++                                let mut rng1 = Shake256::default().finalize_xof();
++                                let mut rng2 = Shake256::default().finalize_xof();
++                                let mut original = Simulator::new(5,2,&mut rng1);
++                                let mut optimized = Simulator::new(5,2,&mut rng2);
++                                for q in 0..5 {
++                                    let v = if state >> q & 1 == 1 { u64::MAX } else { 0 };
++                                    original.qubits[q] = v;
++                                    optimized.qubits[q] = v;
++                                }
++                                for bit in 0..2 {
++                                    let v = if bits >> bit & 1 == 1 { u64::MAX } else { 0 };
++                                    original.bits[bit] = v;
++                                    optimized.bits[bit] = v;
++                                }
++                                let initial = optimized.qubits.clone();
++                                original.apply_iter(original_ops.iter());
++                                optimized.apply_iter(optimized_ops.iter());
++                                assert_eq!(original.qubits,optimized.qubits);
++                                assert_eq!(original.bits,optimized.bits);
++                                assert_eq!(optimized.phase,0);
++                                optimized.apply_iter(optimized_ops.iter().rev());
++                                assert_eq!(optimized.qubits,initial);
++                                checked += 1;
++                            }
++                        }
++                    }
++                }
++            }
++        }
++        assert!(moved > 0);
++        assert_eq!(checked,10880);
++    }
++}
+--- /dev/null
++++ b/src/point_add/relay_cache.rs
+@@ -0,0 +1,90 @@
++//! Exact retained-AND reuse through five disjoint affine storage routes.
++//!
++//! The preceding circuit is frozen by its operation count and SHA3-256 digest.
++//! For each route, a symbolic pass proves that an HMR's measured value equals
++//! both its immediate CZ correction and a later CCX's product. The later CCX
++//! target is zero. Instead of erasing that value, swaps keep it in borrowed
++//! wires until it replaces the later computation. HMRs and their random-word
++//! order are preserved; the first HMR now measures zero and its CZ is removed.
++//!
++//! A borrowed wire is either zero or an affine parity of unchanged wires.
++//! CNOTs clear that parity before storage and restore it after the handoff.
++//! The planner proves that donors are untouched and parity sources unwritten
++//! during each lease. Handoffs occur outside classical condition blocks.
++//! Each route restores every borrowed wire and removes one unconditional CCX.
++//!
++//! Retained-AND caching follows the technique credited to MonitSharma in the
++//! existing product_cache.rs / retained_and.rs. The affine relay schedules and
++//! their discovery are this experiment's contribution; no approximation or
++//! validation nonce changes are made.
++
++use crate::circuit::{Op, OperationType as K};
++use sha3::{Digest, Sha3_256};
++
++const TABLE: &str = include_str!("relay_cache.txt");
++
++fn fields(o: &Op) -> [u64; 7] {
++    [o.kind as u64, o.q_control2.0, o.q_control1.0, o.q_target.0,
++     o.c_target.0, o.c_condition.0, o.r_target.0]
++}
++
++fn decode(v: &[u64]) -> Op {
++    assert_eq!(v.len(), 7);
++    let mut o = Op::empty();
++    o.kind = match v[0] {
++        0 => K::Neg, 1 => K::Register, 2 => K::AppendToRegister,
++        3 => K::BitInvert, 4 => K::BitStore0, 5 => K::BitStore1,
++        6 => K::X, 7 => K::Z, 8 => K::CX, 9 => K::CZ,
++        10 => K::Swap, 11 => K::R, 12 => K::Hmr, 13 => K::CCX,
++        14 => K::CCZ, 15 => K::PushCondition, 16 => K::PopCondition,
++        17 => K::DebugPrint, _ => panic!("invalid relay row kind"),
++    };
++    o.q_control2.0 = v[1]; o.q_control1.0 = v[2]; o.q_target.0 = v[3];
++    o.c_target.0 = v[4]; o.c_condition.0 = v[5]; o.r_target.0 = v[6];
++    o.validate();
++    o
++}
++
++pub(super) fn run(ops: Vec<Op>) -> Vec<Op> {
++    let mut lines = TABLE.lines();
++    let header: Vec<&str> = lines.next().expect("relay header").split_whitespace().collect();
++    assert_eq!(header.len(), 3);
++    assert_eq!(header[0], "RELAY_CACHE");
++    assert_eq!(ops.len(), header[1].parse::<usize>().unwrap(), "relay source count");
++    let mut hash = Sha3_256::new();
++    for o in &ops {
++        for v in fields(o) { hash.update(v.to_le_bytes()); }
++    }
++    assert_eq!(format!("{:x}", hash.finalize()), header[2], "relay source digest");
++
++    let edits: Vec<Vec<u64>> = lines.map(|line| line.split_whitespace()
++        .map(|x| x.parse::<u64>().expect("relay integer")).collect()).collect();
++    let mut delta = 0isize;
++    let mut previous = None;
++    for e in &edits {
++        assert!(e.len() >= 9);
++        let i = usize::try_from(e[0]).unwrap();
++        assert!(i < ops.len());
++        assert!(previous.map_or(true, |p| p < i), "relay edit order");
++        previous = Some(i);
++        let count = usize::try_from(e[1]).unwrap();
++        assert_eq!(e.len(), 9 + 7 * count);
++        assert_eq!(fields(&ops[i]).as_slice(), &e[2..9], "relay expected source row");
++        delta += count as isize - 1;
++    }
++    assert_eq!(edits.len(), 47);
++    assert_eq!(delta, 64);
++    let mut out = Vec::with_capacity(ops.len().checked_add_signed(delta).unwrap());
++    let mut cursor = 0usize;
++    for (i, o) in ops.into_iter().enumerate() {
++        if cursor < edits.len() && edits[cursor][0] as usize == i {
++            for row in edits[cursor][9..].chunks_exact(7) { out.push(decode(row)); }
++            cursor += 1;
++        } else {
++            out.push(o);
++        }
++    }
++    assert_eq!(cursor, edits.len());
++    eprintln!("RELAY_CACHE routes=5 Toffoli_removed=5 added_qubits=0 op_delta=64");
++    out
++}
+--- /dev/null
++++ b/src/point_add/relay_cache.txt
+@@ -0,0 +1,48 @@
++RELAY_CACHE 10233002 cff12379480bc85e1cb8655d90754b7eb489468d7b3e646519ad93ee34fa1dab
++3252602 2 12 18446744073709551615 18446744073709551615 1209 1378 18446744073709551615 18446744073709551615 10 18446744073709551615 1209 1211 18446744073709551615 18446744073709551615 18446744073709551615 12 18446744073709551615 18446744073709551615 1209 1378 18446744073709551615 18446744073709551615
++3252603 0 9 18446744073709551615 257 256 18446744073709551615 1378 18446744073709551615
++3252880 3 13 274 577 1211 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1218 1210 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1211 1210 18446744073709551615 18446744073709551615 18446744073709551615 13 274 577 1211 18446744073709551615 18446744073709551615 18446744073709551615
++3253040 3 8 18446744073709551615 1210 577 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1210 187 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1218 1210 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 577 18446744073709551615 18446744073709551615 18446744073709551615
++3253102 3 13 282 577 187 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 187 1218 18446744073709551615 18446744073709551615 18446744073709551615 13 282 577 187 18446744073709551615 18446744073709551615 18446744073709551615
++3253206 3 8 18446744073709551615 1218 577 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1218 1223 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1218 577 18446744073709551615 18446744073709551615 18446744073709551615
++3253283 3 13 289 257 1223 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1223 1218 18446744073709551615 18446744073709551615 18446744073709551615 13 289 257 1223 18446744073709551615 18446744073709551615 18446744073709551615
++3253546 3 8 18446744073709551615 1205 1210 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1218 1215 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1205 1210 18446744073709551615 18446744073709551615 18446744073709551615
++3253565 3 13 300 577 1215 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1215 1218 18446744073709551615 18446744073709551615 18446744073709551615 13 300 577 1215 18446744073709551615 18446744073709551615 18446744073709551615
++3253593 3 8 18446744073709551615 1205 1210 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1218 186 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1205 1210 18446744073709551615 18446744073709551615 18446744073709551615
++3253663 3 13 304 577 186 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 186 1218 18446744073709551615 18446744073709551615 18446744073709551615 13 304 577 186 18446744073709551615 18446744073709551615 18446744073709551615
++3254049 3 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 1378 18446744073709551615 10 18446744073709551615 1218 1209 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 1378 18446744073709551615
++3255264 1 13 257 256 1216 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1209 1216 18446744073709551615 18446744073709551615 18446744073709551615
++3273069 2 12 18446744073709551615 18446744073709551615 1208 1376 18446744073709551615 18446744073709551615 10 18446744073709551615 1208 1209 18446744073709551615 18446744073709551615 18446744073709551615 12 18446744073709551615 18446744073709551615 1208 1376 18446744073709551615 18446744073709551615
++3273070 0 9 18446744073709551615 1207 573 18446744073709551615 1376 18446744073709551615
++3273385 3 13 864 1222 1209 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1201 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1209 1201 18446744073709551615 18446744073709551615 18446744073709551615 13 864 1222 1209 18446744073709551615 18446744073709551615 18446744073709551615
++3273545 3 8 18446744073709551615 1201 1222 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1201 1218 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1201 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1201 1222 18446744073709551615 18446744073709551615 18446744073709551615
++3273607 3 13 872 1222 1218 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1232 1230 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1218 1230 18446744073709551615 18446744073709551615 18446744073709551615 13 872 1222 1218 18446744073709551615 18446744073709551615 18446744073709551615
++3275086 3 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 1376 18446744073709551615 10 18446744073709551615 1230 1213 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1232 1230 18446744073709551615 18446744073709551615 18446744073709551615 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 1376 18446744073709551615
++3276063 1 13 1207 573 1217 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1213 1217 18446744073709551615 18446744073709551615 18446744073709551615
++3293576 2 12 18446744073709551615 18446744073709551615 185 1377 18446744073709551615 18446744073709551615 10 18446744073709551615 185 1213 18446744073709551615 18446744073709551615 18446744073709551615 12 18446744073709551615 18446744073709551615 185 1377 18446744073709551615 18446744073709551615
++3293577 0 9 18446744073709551615 257 256 18446744073709551615 1377 18446744073709551615
++3293850 3 13 274 581 1213 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1199 184 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1213 184 18446744073709551615 18446744073709551615 18446744073709551615 13 274 581 1213 18446744073709551615 18446744073709551615 18446744073709551615
++3294010 3 8 18446744073709551615 184 581 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 184 1232 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1199 184 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 184 581 18446744073709551615 18446744073709551615 18446744073709551615
++3294072 3 13 282 581 1232 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1229 1199 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1232 1199 18446744073709551615 18446744073709551615 18446744073709551615 13 282 581 1232 18446744073709551615 18446744073709551615 18446744073709551615
++3295585 3 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 1377 18446744073709551615 10 18446744073709551615 1199 185 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1229 1199 18446744073709551615 18446744073709551615 18446744073709551615 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 1377 18446744073709551615
++3296233 1 13 257 256 1233 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 185 1233 18446744073709551615 18446744073709551615 18446744073709551615
++6485282 2 12 18446744073709551615 18446744073709551615 706 656 18446744073709551615 18446744073709551615 10 18446744073709551615 706 864 18446744073709551615 18446744073709551615 18446744073709551615 12 18446744073709551615 18446744073709551615 706 656 18446744073709551615 18446744073709551615
++6485283 0 9 18446744073709551615 256 1149 18446744073709551615 656 18446744073709551615
++6485650 3 13 274 863 864 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 187 1223 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 864 1223 18446744073709551615 18446744073709551615 18446744073709551615 13 274 863 864 18446744073709551615 18446744073709551615 18446744073709551615
++6485773 3 8 18446744073709551615 1223 276 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1223 1216 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 187 1223 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1223 276 18446744073709551615 18446744073709551615 18446744073709551615
++6485862 3 13 282 863 1216 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 187 580 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1216 580 18446744073709551615 18446744073709551615 18446744073709551615 13 282 863 1216 18446744073709551615 18446744073709551615 18446744073709551615
++6487386 3 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 656 18446744073709551615 10 18446744073709551615 580 1208 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 187 580 18446744073709551615 18446744073709551615 18446744073709551615 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 656 18446744073709551615
++6488081 1 13 256 1149 580 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1208 580 18446744073709551615 18446744073709551615 18446744073709551615
++6530126 2 12 18446744073709551615 18446744073709551615 580 656 18446744073709551615 18446744073709551615 10 18446744073709551615 580 1127 18446744073709551615 18446744073709551615 18446744073709551615 12 18446744073709551615 18446744073709551615 580 656 18446744073709551615 18446744073709551615
++6530127 0 9 18446744073709551615 257 256 18446744073709551615 656 18446744073709551615
++6530446 3 13 274 184 1127 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1199 1230 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1127 1230 18446744073709551615 18446744073709551615 18446744073709551615 13 274 184 1127 18446744073709551615 18446744073709551615 18446744073709551615
++6530569 3 8 18446744073709551615 1230 276 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1230 1058 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1199 1230 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 276 18446744073709551615 18446744073709551615 18446744073709551615
++6530658 3 13 282 184 1058 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1058 1199 18446744073709551615 18446744073709551615 18446744073709551615 13 282 184 1058 18446744073709551615 18446744073709551615 18446744073709551615
++6530734 3 8 18446744073709551615 1199 184 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1199 1226 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1199 184 18446744073709551615 18446744073709551615 18446744073709551615
++6530836 3 13 289 257 1226 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1226 1199 18446744073709551615 18446744073709551615 18446744073709551615 13 289 257 1226 18446744073709551615 18446744073709551615 18446744073709551615
++6531080 3 8 18446744073709551615 1228 1230 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1199 1221 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1228 1230 18446744073709551615 18446744073709551615 18446744073709551615
++6531107 3 13 300 184 1221 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1221 1199 18446744073709551615 18446744073709551615 18446744073709551615 13 300 184 1221 18446744073709551615 18446744073709551615 18446744073709551615
++6531127 3 8 18446744073709551615 1228 1230 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1199 865 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1228 1230 18446744073709551615 18446744073709551615 18446744073709551615
++6531203 3 13 304 184 865 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 865 1199 18446744073709551615 18446744073709551615 18446744073709551615 13 304 184 865 18446744073709551615 18446744073709551615 18446744073709551615
++6531390 3 7 18446744073709551615 18446744073709551615 1199 18446744073709551615 656 18446744073709551615 10 18446744073709551615 1199 580 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 7 18446744073709551615 18446744073709551615 1199 18446744073709551615 656 18446744073709551615
++6532840 1 13 257 256 1201 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 580 1201 18446744073709551615 18446744073709551615 18446744073709551615

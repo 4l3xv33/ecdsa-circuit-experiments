@@ -1,0 +1,1 @@
+{"packet":"baseline","shots":9024,"qubits":1234,"bits":2283,"next_measurement_bytes":"0b7b73ceded0f6190e02902e2a574d4d3b5e5b00116bb850a30cdf8d608fa981","state_format":"PAIRv001 followed by u64le shots,nq,nb; each 64-shot batch: baseline then candidate qubit u64 arrays, bit u64 arrays, phase u64"}

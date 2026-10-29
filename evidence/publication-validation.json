@@ -1,0 +1,22 @@
+{
+  "checked_at_utc": "2026-10-29T12:38:57.781858+00:00",
+  "report_pages": 13,
+  "pdf_compiler": "pdfTeX 3.141592653-2.6-1.40.22, TeX Live 2022/dev/Debian",
+  "latex_passes": 2,
+  "latex_overfull_or_underfull_warnings": 0,
+  "all_13_pages_visually_reviewed": true,
+  "rendering": "Poppler PNG at 110 dpi; changed pages rechecked",
+  "markdown_and_latex": "main.tex generated from REPORT.md; same body",
+  "reconstruction": "All three alternative source patches reconstruct exact saved source hashes, including line endings; eleven protected hashes unchanged",
+  "derived_helpers": "All four reconstructed diagnostic helper source hashes match recorded source",
+  "fixture_hashes": "12 paired fixture files match original manifest",
+  "score_checks": "All six latest sum-record result products equal rounded mean Toffoli times measured width",
+  "privacy_files_scanned": 119,
+  "privacy_matches": [],
+  "relative_markdown_links_checked": 6,
+  "public_history": "New independent local repository, no inherited history",
+  "full_rebenchmark_during_packaging": false,
+  "reason": "No arithmetic changes during packaging; existing measured evidence retained",
+  "remote_task_jobs": "No matching compiler, builder, evaluator or generic-pass jobs at final report-stage check",
+  "public_submission": false
+}

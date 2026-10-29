@@ -1,0 +1,256 @@
+{
+  "purpose": "Diagnostic common-input comparisons; cannot replace official acceptance",
+  "pinned_commit": "2120d8a20c9d277e3cfdae29639ec58a78e72e16",
+  "baseline_ops_sha256": "01829912079def4eb61d855c8d3c2653e3d9005fca7da2f99c45990fe848fd89",
+  "candidate_ops_sha256": "5bc648b8ba44bf9b69e90e05b6c1a085ce391d3a81e82dc7229f2393cb8cd9ae",
+  "official_seed_domain": "quantum_ecc-fiat-shamir-v2",
+  "official_seed_fields": "SHAKE256(domain || u64le(opcount) || for each op: u8(kind) and six u64le operands in evaluator order)",
+  "fresh_seed_ascii": "ecdsafail-affine-relay-common-v1-20261029-0608",
+  "measurements": "The SHAKE reader continues after generating 9024 pairs of 32-byte scalars; cloned reader gives equal R/HMR words for baseline and candidate. Next 32 bytes recorded in each fixture.json.",
+  "packets": {
+    "baseline": {
+      "count": 9024,
+      "cases_sha256": "df83ee0e5abe13afd1a9e20cde341aeeb921206632919c2423b43acacda08348",
+      "fixtures": {
+        "packet": "baseline",
+        "shots": 9024,
+        "qubits": 1234,
+        "bits": 2283,
+        "next_measurement_bytes": "0b7b73ceded0f6190e02902e2a574d4d3b5e5b00116bb850a30cdf8d608fa981",
+        "state_format": "PAIRv001 followed by u64le shots,nq,nb; each 64-shot batch: baseline then candidate qubit u64 arrays, bit u64 arrays, phase u64"
+      },
+      "file_sha256": {
+        "result.json": "747cc883c1c88a885c0d57dabaf495f4c8a15f66e72601103421bea80dc04221",
+        "exit-code": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "cases.jsonl.zst": "e0ede90fdc7d505be8af1ba4d14a3f34616df160c5a39fbcd11d2ca90ce3af96",
+        "time.txt": "d9104e1e403c6d57219eed94f9afe8b02dc7b161e49587de738413ae9b7a9b6d",
+        "fixture.json": "d6a746ebb2e78e9fe304829b74925ba2feaa0401a9a970cc21ebbbc305b5384e",
+        "final-states.bin.zst": "3f62dea7c733f40521120492638475c28f24601b3339775eed2eb6c752215e1c",
+        "finished": "0d2a443cb4f0bea1dedc7d25619d4f033223c5129c9eefd033a0d9e440c7a103",
+        "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "started": "85cfc9ee289db22ea74cbdea99f320db82deb5ce914b76b381ff98002fbd89d9"
+      },
+      "error_shots": []
+    },
+    "fresh": {
+      "count": 9024,
+      "cases_sha256": "5862a45416757555ef18c4278b092a297ecf5c647048fd0e42800c9296839d0a",
+      "fixtures": {
+        "packet": "fresh",
+        "shots": 9024,
+        "qubits": 1234,
+        "bits": 2283,
+        "next_measurement_bytes": "b027b79a95fcd1dc5fc8d683d96036bf78d9c197665a91fcbc9ad351c56fb2f4",
+        "state_format": "PAIRv001 followed by u64le shots,nq,nb; each 64-shot batch: baseline then candidate qubit u64 arrays, bit u64 arrays, phase u64"
+      },
+      "file_sha256": {
+        "result.json": "baa0f2fc637dd84d8113e2e2b940cb10639173564191591f7fbe3441e9ccde37",
+        "exit-code": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "cases.jsonl.zst": "c3b7f2347c24127024682d62d8b815134b2acd5ea126d39e3265c4c94e97b7d1",
+        "time.txt": "ea3b2c60b6cc99b133eaf0188ec14e1191b9ac2035ffbe4a4c273faf73932f75",
+        "fixture.json": "836ce4c5ecf6140fa17503e9b7aee01c421fe27cccaccad70cf027d8b631f708",
+        "final-states.bin.zst": "eb045ba078677d5c90246a17ddf4b6371d3ce3810b2238dbd6d9e8045d888b4a",
+        "finished": "b0873d5b5761c05c6ee4dd261d4d82c332d06249c64f6116604d7edbfd936c73",
+        "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "started": "0d2a443cb4f0bea1dedc7d25619d4f033223c5129c9eefd033a0d9e440c7a103"
+      },
+      "error_shots": [
+        {
+          "shot": 669,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        },
+        {
+          "shot": 1005,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 1375,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        },
+        {
+          "shot": 2208,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 2876,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 3109,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        },
+        {
+          "shot": 3483,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        },
+        {
+          "shot": 3753,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 5044,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 6194,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 6481,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        },
+        {
+          "shot": 7032,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 7776,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 8327,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        },
+        {
+          "shot": 8559,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 8733,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 8897,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        }
+      ]
+    },
+    "candidate": {
+      "count": 9024,
+      "cases_sha256": "bce7f955d2dc9469ab212c97e86a0d77c1db0412b23c9046d68d4d9fa43a5ca8",
+      "fixtures": {
+        "packet": "candidate",
+        "shots": 9024,
+        "qubits": 1234,
+        "bits": 2283,
+        "next_measurement_bytes": "5aed4a953afe97acc3387177c62e2f34e7d3176510b3e5aa2c53811dbf125a10",
+        "state_format": "PAIRv001 followed by u64le shots,nq,nb; each 64-shot batch: baseline then candidate qubit u64 arrays, bit u64 arrays, phase u64"
+      },
+      "file_sha256": {
+        "result.json": "40d5868e1ae8e312a2070ba883df998128be91fbe1745efac7358e4a32c728f9",
+        "exit-code": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "cases.jsonl.zst": "91f26eb9b4b5daf4f599f86040ce51ef4e368f7c1ed5cb7bf517a170018161d6",
+        "time.txt": "25d57558196dfe8ddf7b9ce5e1c47aa445482e4bfaae4ff037fd80e5e074f282",
+        "fixture.json": "ed8e62ca6865c7d28032854b77b54ec97c0c5af8d881285ed6db0e41bfbf558d",
+        "final-states.bin.zst": "003c2fb9fc37de564aceda7473f80069365eb5d166828c5a4e2471ceed446b53",
+        "finished": "45c45e0d109fd069210b277b7cefaa53e099191f2c603350950f8d3db45ae88c",
+        "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "started": "4b02d11be88010116e895bba9d24b95b2d5abac01eafad03d94dc6dc8989448b"
+      },
+      "error_shots": [
+        {
+          "shot": 353,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        },
+        {
+          "shot": 885,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 1621,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 2611,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 3208,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        },
+        {
+          "shot": 3487,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        },
+        {
+          "shot": 3898,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 4279,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        },
+        {
+          "shot": 5526,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        },
+        {
+          "shot": 5891,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 6282,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 6839,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        },
+        {
+          "shot": 6861,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        },
+        {
+          "shot": 7121,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 7556,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 8468,
+          "baseline_phase": 0,
+          "candidate_phase": 0
+        },
+        {
+          "shot": 8611,
+          "baseline_phase": 1,
+          "candidate_phase": 1
+        }
+      ]
+    }
+  }
+}

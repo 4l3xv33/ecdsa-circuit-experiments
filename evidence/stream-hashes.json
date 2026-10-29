@@ -1,0 +1,19 @@
+{
+  "baseline": {
+    "sha256": "01829912079def4eb61d855c8d3c2653e3d9005fca7da2f99c45990fe848fd89",
+    "operations": 10233098,
+    "source": "saved fixture manifest and initial official baseline record"
+  },
+  "relay": {
+    "sha256": "5bc648b8ba44bf9b69e90e05b6c1a085ce391d3a81e82dc7229f2393cb8cd9ae",
+    "bytes": 34994104
+  },
+  "sum-record-compact": {
+    "sha256": "76dc2176a4f240d66a10f2a047a0043a5b53054d1c3f031765a1d7fa9db28046",
+    "bytes": 35769168
+  },
+  "sum-record-post": {
+    "sha256": "5b804e8fb482113a9623695d600eb5cf95eb2b217b983d9fd8899614bebcec4a",
+    "bytes": 35783825
+  }
+}

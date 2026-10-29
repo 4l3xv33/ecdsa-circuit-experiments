@@ -1,0 +1,275 @@
+--- a/paired-audit.rs
++++ b/paired-audit.rs
+@@ -1,12 +1,3 @@
+-//! TRUSTED stage of the challenge harness.
+-//!
+-//! Reads the op stream produced by `build_circuit` from `ops.bin`,
+-//! re-simulates the circuit against the secp256k1 reference adder,
+-//! enforces the four validity checks (correctness, reversibility, phase,
+-//! ancilla cleanup), counts gates, writes `score.json`, and appends one
+-//! row to `results.tsv`.
+-//!
+-//! This binary deliberately does NOT import `quantum_ecc::point_add` —
+-//! contestant code never executes inside the trusted process. `ops.bin`
+-//! is treated as fully untrusted input and is bounds-checked before use.
+-
++// Auxiliary paired comparison; copied loader/reference routines from pinned evaluator.
++// The official evaluator source and binary remain unchanged. This is not an official scorer.
++#![allow(dead_code)]
+@@ -372,78 +363,19 @@
+-// ─── Output bookkeeping ────────────────────────────────────────────────────
+-
+-fn parse_note() -> String {
+-    let mut args = std::env::args().skip(1);
+-    let mut note = String::new();
+-    while let Some(a) = args.next() {
+-        if a == "--note" {
+-            if let Some(v) = args.next() {
+-                note = v;
+-            }
+-        } else if let Some(rest) = a.strip_prefix("--note=") {
+-            note = rest.to_string();
+-        }
+-    }
+-    note.replace('\t', " ").replace('\n', " ")
+-}
+-
+-fn git_commit_short() -> String {
+-    Command::new("git")
+-        .args(["rev-parse", "--short", "HEAD"])
+-        .output()
+-        .ok()
+-        .and_then(|o| {
+-            if o.status.success() {
+-                Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
+-            } else {
+-                None
+-            }
+-        })
+-        .unwrap_or_else(|| "nogit".to_string())
+-}
+-
+-fn append_results_row(
+-    correct: &str,
+-    avg_tof: f64,
+-    avg_cliff: f64,
+-    qubits: u64,
+-    ops_len: usize,
+-    note: &str,
+-) {
+-    let ts = SystemTime::now()
+-        .duration_since(UNIX_EPOCH)
+-        .map(|d| d.as_secs())
+-        .unwrap_or(0);
+-    let commit = git_commit_short();
+-    let safe_note = note.replace('\t', " ").replace('\n', " ");
+-    let row = format!(
+-        "{ts}\t{commit}\t{avg_tof:.3}\t{avg_cliff:.3}\t{qubits}\t{ops_len}\t{correct}\t{safe_note}\n"
+-    );
+-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/results.tsv");
+-    match OpenOptions::new().create(true).append(true).open(path) {
+-        Ok(mut f) => {
+-            if let Err(e) = f.write_all(row.as_bytes()) {
+-                eprintln!("warning: failed to write results.tsv: {e}");
+-            }
+-        }
+-        Err(e) => eprintln!("warning: failed to open results.tsv: {e}"),
+-    }
+-}
+-
+-fn write_score(avg_tof: f64, qubits: u64) {
+-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/score.json");
+-    let toffoli = avg_tof.round() as u64;
+-    let score = toffoli.saturating_mul(qubits);
+-    let body = format!(
+-        "{{\n  \"score\": {score},\n  \"metrics\": {{\n    \"toffoli\": {toffoli},\n    \"qubits\": {qubits}\n  }}\n}}\n"
+-    );
+-    if let Err(e) = std::fs::write(path, body) {
+-        eprintln!("warning: failed to write score.json: {e}");
+-    }
+-}
+-
+-fn fail_and_exit(reason: &str, note: &str, ops_len: usize, total_qubits: u64) -> ! {
+-    eprintln!("\n!! eval FAILED: {reason}");
+-    let fail_note = if note.is_empty() {
+-        reason.to_string()
+-    } else {
+-        format!("{note} | {reason}")
++// Diagnostic only. This does not write score.json or replace official validation.
++fn main() {
++    let args:Vec<String>=std::env::args().collect();
++    assert!(args.len()>=4,"baseline candidate fresh|candidate|baseline [shots]");
++    let base=load_ops(&args[1]).expect("baseline load");
++    let candidate=load_ops(&args[2]).expect("candidate load");
++    let shots:usize=args.get(4).map_or(9024,|v|v.parse().unwrap());
++    assert!(shots>0&&shots%64==0);
++    let (nq,nb,nr,regs)=analyze_ops(base.iter());
++    let (cq,cb,cr,cregs)=analyze_ops(candidate.iter());
++    assert_eq!((nq,nb,nr),(cq,cb,cr));assert_eq!(regs,cregs);
++    assert_eq!(&base[base.len()-96..],&candidate[candidate.len()-96..],"unchanged nonce tail");
++    let measurement=|o:&&Op|matches!(o.kind,OperationType::R|OperationType::Hmr);
++    assert_eq!(base.iter().filter(measurement).collect::<Vec<_>>(),candidate.iter().filter(measurement).collect::<Vec<_>>(),"measurement order and operands");
++    let mut xof=match args[3].as_str() {
++        "baseline"=>fiat_shamir_seed(&base),
++        "candidate"=>fiat_shamir_seed(&candidate),
++        "fresh"=>{let mut h=Shake256::default();h.update(b"ecdsafail-affine-relay-common-v1-20261029-0608");h.finalize_xof()},
++        _=>panic!("unsupported packet"),
+@@ -451,101 +383,57 @@
+-    append_results_row("FAIL", 0.0, 0.0, total_qubits, ops_len, &fail_note);
+-    std::process::exit(1);
+-}
+-
+-fn main() {
+-    let note = parse_note();
+-    println!("=== quantum_ecc: eval_circuit (trusted stage) ===\n");
+-
+-    let ops = match load_ops(OPS_PATH) {
+-        Ok(v) => v,
+-        Err(e) => {
+-            eprintln!("!! could not load {OPS_PATH}: {e}");
+-            append_results_row("FAIL", 0.0, 0.0, 0, 0, &format!("{note} | load: {e}"));
+-            std::process::exit(1);
+-        }
+-    };
+-    println!("  loaded ops  : {}", ops.len());
+-
+-    let (total_qubits, num_bits, _num_regs, regs) = analyze_ops(ops.iter());
+-
+-    if regs.len() != 4 {
+-        fail_and_exit(
+-            &format!("expected 4 registers, got {}", regs.len()),
+-            &note,
+-            ops.len(),
+-            total_qubits,
+-        );
+-    }
+-    for (i, r) in regs.iter().enumerate() {
+-        if r.len() != 256 {
+-            fail_and_exit(
+-                &format!("register {i} should be 256 wide, got {}", r.len()),
+-                &note,
+-                ops.len(),
+-                total_qubits,
+-            );
+-        }
+-    }
+-    for q in &regs[0] {
+-        if !matches!(q, QubitOrBit::Qubit(_)) {
+-            fail_and_exit("register 0 must be qubits", &note, ops.len(), total_qubits);
+-        }
+-    }
+-    for q in &regs[1] {
+-        if !matches!(q, QubitOrBit::Qubit(_)) {
+-            fail_and_exit("register 1 must be qubits", &note, ops.len(), total_qubits);
+-        }
+-    }
+-    for q in &regs[2] {
+-        if !matches!(q, QubitOrBit::Bit(_)) {
+-            fail_and_exit("register 2 must be bits", &note, ops.len(), total_qubits);
+-        }
+-    }
+-    for q in &regs[3] {
+-        if !matches!(q, QubitOrBit::Bit(_)) {
+-            fail_and_exit("register 3 must be bits", &note, ops.len(), total_qubits);
+-        }
+-    }
+-
+-    println!("  qubits      : {}", total_qubits);
+-    println!("  bits        : {}", num_bits);
+-
+-    println!("\n-- correctness tests ({} shots) --", NUM_TESTS);
+-    let xof = fiat_shamir_seed(&ops);
+-    let r = run_tests(&ops, &regs, total_qubits, num_bits, xof, NUM_TESTS);
+-    println!("  tested shots            : {}", r.n_shots);
+-    println!("  classical mismatches    : {}", r.classical_failures);
+-    println!("  phase-garbage batches   : {}", r.phase_garbage_batches);
+-    println!("  ancilla-garbage batches : {}", r.ancilla_garbage_batches);
+-    if !r.ok {
+-        let reason = r.fail_reason.clone().unwrap_or_else(|| "(no detail)".into());
+-        println!("\n!! correctness FAILED: {reason}");
+-        let fail_note = format!("{note} | {reason}");
+-        append_results_row(
+-            "FAIL",
+-            r.avg_tof,
+-            r.avg_cliff,
+-            total_qubits,
+-            ops.len(),
+-            &fail_note,
+-        );
+-        std::process::exit(1);
+-    }
+-    println!("  all {} shots OK", r.n_shots);
+-
+-    println!("\n=== circuit metrics (secp256k1, n=256) ===");
+-    println!("  avg executed Toffoli  : {:.3}", r.avg_tof);
+-    println!("  avg executed Clifford : {:.3}", r.avg_cliff);
+-    println!(
+-        "  total Toffoli (sum)   : {} over {} shots",
+-        r.tot_tof, r.n_shots
+-    );
+-    println!("  total Clifford (sum)  : {}", r.tot_cliff);
+-    println!("  emitted ops           : {}", ops.len());
+-    println!("  qubits                : {}", total_qubits);
+-
+-    append_results_row("OK", r.avg_tof, r.avg_cliff, total_qubits, ops.len(), &note);
+-    write_score(r.avg_tof, total_qubits);
+-
+-    println!("\n=== experiment OK ===");
+-}
++    let curve=secp256k1();let mut points=Vec::with_capacity(shots);
++    for _ in 0..shots {
++        let mut rb=[[0u8;32];2];XofReader::read(&mut xof,&mut rb[0]);XofReader::read(&mut xof,&mut rb[1]);
++        let t=curve.mul(curve.gx,curve.gy,U256::from_le_bytes(rb[0]));
++        let o=curve.mul(curve.gx,curve.gy,U256::from_le_bytes(rb[1]));
++        if t.0==o.0 || (t.0.is_zero()&&t.1.is_zero()) || (o.0.is_zero()&&o.1.is_zero()) {continue;}
++        points.push((t,o,curve.add(t.0,t.1,o.0,o.1)));
++    }
++    assert_eq!(points.len(),shots,"unexpected degenerate sample; record before changing fixture");
++    let mut seed_preview=xof.clone();let mut next_rng=[0u8;32];XofReader::read(&mut seed_preview,&mut next_rng);
++    let mut audit=zstd::stream::write::Encoder::new(File::create("cases.jsonl.zst").unwrap(),3).unwrap();
++    let mut states=zstd::stream::write::Encoder::new(File::create("final-states.bin.zst").unwrap(),3).unwrap();
++    states.write_all(b"PAIRv001").unwrap();for v in [shots as u64,nq,nb] {states.write_all(&v.to_le_bytes()).unwrap();}
++    std::fs::write("fixture.json",format!("{{\"packet\":\"{}\",\"shots\":{shots},\"qubits\":{nq},\"bits\":{nb},\"next_measurement_bytes\":\"{}\",\"state_format\":\"PAIRv001 followed by u64le shots,nq,nb; each 64-shot batch: baseline then candidate qubit u64 arrays, bit u64 arrays, phase u64\"}}",args[3],next_rng.iter().map(|v|format!("{v:02x}")).collect::<String>())).unwrap();
++    let mut x0=xof.clone();let mut x1=xof;
++    let mut s0=Simulator::new(nq as usize,nb as usize,&mut x0);
++    let mut s1=Simulator::new(nq as usize,nb as usize,&mut x1);
++    let mut base_errors=vec![];let mut candidate_errors=vec![];let mut differences=vec![];
++    let(mut bphase,mut cphase,mut banc,mut canc)=(0u64,0u64,0u64,0u64);
++    let mut output_qubits=vec![false;nq as usize];
++    for r in &regs {for v in r {if let QubitOrBit::Qubit(q)=v {output_qubits[q.0 as usize]=true;}}}
++    for (batch,ps) in points.chunks(64).enumerate() {
++        s0.clear_for_shot();s1.clear_for_shot();
++        for (lane,(t,o,_)) in ps.iter().enumerate() {for s in [&mut s0,&mut s1] {
++            s.set_register(&regs[0],t.0,lane);s.set_register(&regs[1],t.1,lane);
++            s.set_register(&regs[2],o.0,lane);s.set_register(&regs[3],o.1,lane);
++        }}
++        s0.apply_iter(base.iter());s1.apply_iter(candidate.iter());
++        for s in [&s0,&s1] {for v in s.qubits.iter().chain(s.bits.iter()).chain(std::iter::once(&s.phase)) {states.write_all(&v.to_le_bytes()).unwrap();}}
++        let mut diff=s0.phase^s1.phase;
++        for (&a,&b) in s0.qubits.iter().zip(&s1.qubits) {diff|=a^b;}
++        for (&a,&b) in s0.bits.iter().zip(&s1.bits) {diff|=a^b;}
++        let(mut ag0,mut ag1)=(0u64,0u64);
++        for q in 0..nq as usize {if !output_qubits[q] {ag0|=s0.qubits[q];ag1|=s1.qubits[q];}}
++        banc+=ag0.count_ones() as u64;canc+=ag1.count_ones() as u64;
++        bphase+=s0.phase.count_ones() as u64;cphase+=s1.phase.count_ones() as u64;
++        for (lane,(_,_,e)) in ps.iter().enumerate() {
++            let idx=batch*64+lane;
++            let (t,o,e)=ps[lane];
++            writeln!(audit,"{{\"shot\":{idx},\"target\":[\"{:064x}\",\"{:064x}\"],\"offset\":[\"{:064x}\",\"{:064x}\"],\"expected\":[\"{:064x}\",\"{:064x}\"],\"baseline\":[\"{:064x}\",\"{:064x}\"],\"candidate\":[\"{:064x}\",\"{:064x}\"],\"baseline_phase\":{},\"candidate_phase\":{},\"baseline_ancilla\":{},\"candidate_ancilla\":{}}}",t.0,t.1,o.0,o.1,e.0,e.1,s0.get_register(&regs[0],lane),s0.get_register(&regs[1],lane),s1.get_register(&regs[0],lane),s1.get_register(&regs[1],lane),(s0.phase>>lane)&1,(s1.phase>>lane)&1,(ag0>>lane)&1,(ag1>>lane)&1).unwrap();
++            if s0.get_register(&regs[0],lane)!=e.0 || s0.get_register(&regs[1],lane)!=e.1 {base_errors.push(idx);}
++            if s1.get_register(&regs[0],lane)!=e.0 || s1.get_register(&regs[1],lane)!=e.1 {candidate_errors.push(idx);}
++            if diff&(1u64<<lane)!=0 {differences.push(idx);}
++        }
++    }
++    audit.finish().unwrap();states.finish().unwrap();
++    let(t0,t1)=(s0.stats.toffoli_gates,s1.stats.toffoli_gates);
++    let(c0,c1)=(s0.stats.clifford_gates,s1.stats.clifford_gates);
++    drop(s0);drop(s1);
++    let(mut after0,mut after1)=([0u8;32],[0u8;32]);
++    XofReader::read(&mut x0,&mut after0);XofReader::read(&mut x1,&mut after1);
++    assert_eq!(after0,after1,"identical random-word consumption");
++    let avg0=t0 as f64/shots as f64;let avg1=t1 as f64/shots as f64;
++    println!("{{\"packet\":\"{}\",\"shots\":{shots},\"qubits\":{nq},\"baseline_total_toffoli\":{t0},\"candidate_total_toffoli\":{t1},\"baseline_average_toffoli\":{avg0:.9},\"candidate_average_toffoli\":{avg1:.9},\"baseline_product\":{},\"candidate_product\":{},\"baseline_total_clifford\":{c0},\"candidate_total_clifford\":{c1},\"baseline_classical_error_shots\":{base_errors:?},\"candidate_classical_error_shots\":{candidate_errors:?},\"baseline_phase_error_shots\":{bphase},\"candidate_phase_error_shots\":{cphase},\"baseline_ancilla_error_shots\":{banc},\"candidate_ancilla_error_shots\":{canc},\"different_shots\":{differences:?},\"random_word_consumption_equal\":true}}",args[3],avg0.round() as u64*nq,avg1.round() as u64*nq);
++    assert!(differences.is_empty(),"paired circuit mismatch");
++    assert_eq!(t0-t1,5*shots as u64,"five unconditional Toffolis saved per shot");
++}

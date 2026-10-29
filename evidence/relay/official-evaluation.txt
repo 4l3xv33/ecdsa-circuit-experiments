@@ -1,0 +1,13 @@
+=== quantum_ecc: eval_circuit (trusted stage) ===
+
+  loaded ops  : 10233162
+  qubits      : 1234
+  bits        : 2283
+
+-- correctness tests (9024 shots) --
+  tested shots            : 9024
+  classical mismatches    : 16
+  phase-garbage batches   : 8
+  ancilla-garbage batches : 0
+
+!! correctness FAILED: PHASE GARBAGE: global_phase = 0x0000000200000000 across 64 live shots (must be 0)

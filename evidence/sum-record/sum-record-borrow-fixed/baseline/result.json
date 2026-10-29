@@ -1,0 +1,1 @@
+{"packet_source":"/packet.bin","passed":false,"shots":9024,"qubits":1245,"operations":10351785,"average_toffoli":747398.3557180851,"average_clifford":7417969.526595744,"rounded_diagnostic_product":930510510,"classical_errors":4,"phase_error_batches":5,"ancilla_error_batches":0,"official_score":null}

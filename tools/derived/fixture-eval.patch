@@ -1,0 +1,217 @@
+--- a/fixture-eval.rs
++++ b/fixture-eval.rs
+@@ -1,12 +1,3 @@
+-//! TRUSTED stage of the challenge harness.
+-//!
+-//! Reads the op stream produced by `build_circuit` from `ops.bin`,
+-//! re-simulates the circuit against the secp256k1 reference adder,
+-//! enforces the four validity checks (correctness, reversibility, phase,
+-//! ancilla cleanup), counts gates, writes `score.json`, and appends one
+-//! row to `results.tsv`.
+-//!
+-//! This binary deliberately does NOT import `quantum_ecc::point_add` —
+-//! contestant code never executes inside the trusted process. `ops.bin`
+-//! is treated as fully untrusted input and is bounds-checked before use.
+-
++// Auxiliary paired comparison; copied loader/reference routines from pinned evaluator.
++// The official evaluator source and binary remain unchanged. This is not an official scorer.
++#![allow(dead_code)]
+@@ -242,0 +234 @@
++    let mut audit=zstd::stream::write::Encoder::new(File::create("cases.jsonl.zst").unwrap(),3).unwrap();
+@@ -300,0 +293 @@
++            writeln!(audit,"{{\"shot\":{i},\"target\":[\"{:064x}\",\"{:064x}\"],\"offset\":[\"{:064x}\",\"{:064x}\"],\"expected\":[\"{:064x}\",\"{:064x}\"],\"got\":[\"{:064x}\",\"{:064x}\"],\"phase\":{}}}",targets[i].0,targets[i].1,offsets[i].0,offsets[i].1,expected[i].0,expected[i].1,gx,gy,(sim.phase>>shot)&1).unwrap();
+@@ -355,0 +349 @@
++    audit.finish().unwrap();
+@@ -372,180 +366,12 @@
+-// ─── Output bookkeeping ────────────────────────────────────────────────────
+-
+-fn parse_note() -> String {
+-    let mut args = std::env::args().skip(1);
+-    let mut note = String::new();
+-    while let Some(a) = args.next() {
+-        if a == "--note" {
+-            if let Some(v) = args.next() {
+-                note = v;
+-            }
+-        } else if let Some(rest) = a.strip_prefix("--note=") {
+-            note = rest.to_string();
+-        }
+-    }
+-    note.replace('\t', " ").replace('\n', " ")
+-}
+-
+-fn git_commit_short() -> String {
+-    Command::new("git")
+-        .args(["rev-parse", "--short", "HEAD"])
+-        .output()
+-        .ok()
+-        .and_then(|o| {
+-            if o.status.success() {
+-                Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
+-            } else {
+-                None
+-            }
+-        })
+-        .unwrap_or_else(|| "nogit".to_string())
+-}
+-
+-fn append_results_row(
+-    correct: &str,
+-    avg_tof: f64,
+-    avg_cliff: f64,
+-    qubits: u64,
+-    ops_len: usize,
+-    note: &str,
+-) {
+-    let ts = SystemTime::now()
+-        .duration_since(UNIX_EPOCH)
+-        .map(|d| d.as_secs())
+-        .unwrap_or(0);
+-    let commit = git_commit_short();
+-    let safe_note = note.replace('\t', " ").replace('\n', " ");
+-    let row = format!(
+-        "{ts}\t{commit}\t{avg_tof:.3}\t{avg_cliff:.3}\t{qubits}\t{ops_len}\t{correct}\t{safe_note}\n"
+-    );
+-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/results.tsv");
+-    match OpenOptions::new().create(true).append(true).open(path) {
+-        Ok(mut f) => {
+-            if let Err(e) = f.write_all(row.as_bytes()) {
+-                eprintln!("warning: failed to write results.tsv: {e}");
+-            }
+-        }
+-        Err(e) => eprintln!("warning: failed to open results.tsv: {e}"),
+-    }
+-}
+-
+-fn write_score(avg_tof: f64, qubits: u64) {
+-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/score.json");
+-    let toffoli = avg_tof.round() as u64;
+-    let score = toffoli.saturating_mul(qubits);
+-    let body = format!(
+-        "{{\n  \"score\": {score},\n  \"metrics\": {{\n    \"toffoli\": {toffoli},\n    \"qubits\": {qubits}\n  }}\n}}\n"
+-    );
+-    if let Err(e) = std::fs::write(path, body) {
+-        eprintln!("warning: failed to write score.json: {e}");
+-    }
+-}
+-
+-fn fail_and_exit(reason: &str, note: &str, ops_len: usize, total_qubits: u64) -> ! {
+-    eprintln!("\n!! eval FAILED: {reason}");
+-    let fail_note = if note.is_empty() {
+-        reason.to_string()
+-    } else {
+-        format!("{note} | {reason}")
+-    };
+-    append_results_row("FAIL", 0.0, 0.0, total_qubits, ops_len, &fail_note);
+-    std::process::exit(1);
+-}
+-
+-fn main() {
+-    let note = parse_note();
+-    println!("=== quantum_ecc: eval_circuit (trusted stage) ===\n");
+-
+-    let ops = match load_ops(OPS_PATH) {
+-        Ok(v) => v,
+-        Err(e) => {
+-            eprintln!("!! could not load {OPS_PATH}: {e}");
+-            append_results_row("FAIL", 0.0, 0.0, 0, 0, &format!("{note} | load: {e}"));
+-            std::process::exit(1);
+-        }
+-    };
+-    println!("  loaded ops  : {}", ops.len());
+-
+-    let (total_qubits, num_bits, _num_regs, regs) = analyze_ops(ops.iter());
+-
+-    if regs.len() != 4 {
+-        fail_and_exit(
+-            &format!("expected 4 registers, got {}", regs.len()),
+-            &note,
+-            ops.len(),
+-            total_qubits,
+-        );
+-    }
+-    for (i, r) in regs.iter().enumerate() {
+-        if r.len() != 256 {
+-            fail_and_exit(
+-                &format!("register {i} should be 256 wide, got {}", r.len()),
+-                &note,
+-                ops.len(),
+-                total_qubits,
+-            );
+-        }
+-    }
+-    for q in &regs[0] {
+-        if !matches!(q, QubitOrBit::Qubit(_)) {
+-            fail_and_exit("register 0 must be qubits", &note, ops.len(), total_qubits);
+-        }
+-    }
+-    for q in &regs[1] {
+-        if !matches!(q, QubitOrBit::Qubit(_)) {
+-            fail_and_exit("register 1 must be qubits", &note, ops.len(), total_qubits);
+-        }
+-    }
+-    for q in &regs[2] {
+-        if !matches!(q, QubitOrBit::Bit(_)) {
+-            fail_and_exit("register 2 must be bits", &note, ops.len(), total_qubits);
+-        }
+-    }
+-    for q in &regs[3] {
+-        if !matches!(q, QubitOrBit::Bit(_)) {
+-            fail_and_exit("register 3 must be bits", &note, ops.len(), total_qubits);
+-        }
+-    }
+-
+-    println!("  qubits      : {}", total_qubits);
+-    println!("  bits        : {}", num_bits);
+-
+-    println!("\n-- correctness tests ({} shots) --", NUM_TESTS);
+-    let xof = fiat_shamir_seed(&ops);
+-    let r = run_tests(&ops, &regs, total_qubits, num_bits, xof, NUM_TESTS);
+-    println!("  tested shots            : {}", r.n_shots);
+-    println!("  classical mismatches    : {}", r.classical_failures);
+-    println!("  phase-garbage batches   : {}", r.phase_garbage_batches);
+-    println!("  ancilla-garbage batches : {}", r.ancilla_garbage_batches);
+-    if !r.ok {
+-        let reason = r.fail_reason.clone().unwrap_or_else(|| "(no detail)".into());
+-        println!("\n!! correctness FAILED: {reason}");
+-        let fail_note = format!("{note} | {reason}");
+-        append_results_row(
+-            "FAIL",
+-            r.avg_tof,
+-            r.avg_cliff,
+-            total_qubits,
+-            ops.len(),
+-            &fail_note,
+-        );
+-        std::process::exit(1);
+-    }
+-    println!("  all {} shots OK", r.n_shots);
+-
+-    println!("\n=== circuit metrics (secp256k1, n=256) ===");
+-    println!("  avg executed Toffoli  : {:.3}", r.avg_tof);
+-    println!("  avg executed Clifford : {:.3}", r.avg_cliff);
+-    println!(
+-        "  total Toffoli (sum)   : {} over {} shots",
+-        r.tot_tof, r.n_shots
+-    );
+-    println!("  total Clifford (sum)  : {}", r.tot_cliff);
+-    println!("  emitted ops           : {}", ops.len());
+-    println!("  qubits                : {}", total_qubits);
+-
+-    append_results_row("OK", r.avg_tof, r.avg_cliff, total_qubits, ops.len(), &note);
+-    write_score(r.avg_tof, total_qubits);
+-
+-    println!("\n=== experiment OK ===");
+-}
++
++fn main(){
++ let args:Vec<String>=std::env::args().collect();assert_eq!(args.len(),3,"circuit packet-source|fresh|official");
++ let ops=load_ops(&args[1]).unwrap();let(nq,nb,_,regs)=analyze_ops(ops.iter());
++ let seed=match args[2].as_str(){
++  "fresh"=>{let mut h=Shake256::default();h.update(b"ecdsafail-affine-relay-common-v1-20261029-0608");h.finalize_xof()},
++  "official"=>fiat_shamir_seed(&ops),
++  path=>fiat_shamir_seed(&load_ops(path).unwrap()),
++ };
++ let r=run_tests(&ops,&regs,nq,nb,seed,9024);
++ println!("{{\"packet_source\":\"{}\",\"passed\":{},\"shots\":{},\"qubits\":{nq},\"operations\":{},\"average_toffoli\":{},\"average_clifford\":{},\"rounded_diagnostic_product\":{},\"classical_errors\":{},\"phase_error_batches\":{},\"ancilla_error_batches\":{},\"official_score\":null}}",args[2],r.ok,r.n_shots,ops.len(),r.avg_tof,r.avg_cliff,(r.avg_tof.round()as u64)*nq,r.classical_failures,r.phase_garbage_batches,r.ancilla_garbage_batches);
++}

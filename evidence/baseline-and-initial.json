@@ -1,0 +1,120 @@
+{
+  "pinned_commit": "2120d8a20c9d277e3cfdae29639ec58a78e72e16",
+  "variants": {
+    "baseline": {
+      "score": {
+        "score": 915170186,
+        "metrics": {
+          "toffoli": 741629,
+          "qubits": 1234
+        }
+      },
+      "shots": 9024,
+      "classical_errors": 0,
+      "phase_garbage_batches": 0,
+      "ancilla_garbage_batches": 0,
+      "average_toffoli_unrounded": 741628.646,
+      "ops": 10233098,
+      "ops_sha256": "01829912079def4eb61d855c8d3c2653e3d9005fca7da2f99c45990fe848fd89",
+      "timings": {
+        "compile": {
+          "wall_seconds": 52.58,
+          "max_rss_kib": 2314336.0,
+          "user_seconds": 62.74,
+          "system_seconds": 3.58
+        },
+        "build": {
+          "wall_seconds": 131.62,
+          "max_rss_kib": 3952328.0,
+          "user_seconds": 120.64,
+          "system_seconds": 7.03
+        },
+        "evaluate": {
+          "wall_seconds": 12.62,
+          "max_rss_kib": 564312.0,
+          "user_seconds": 12.49,
+          "system_seconds": 0.13
+        }
+      }
+    },
+    "adjacent-only": {
+      "score": {
+        "score": 915170186,
+        "metrics": {
+          "toffoli": 741629,
+          "qubits": 1234
+        }
+      },
+      "shots": 9024,
+      "classical_errors": 0,
+      "phase_garbage_batches": 0,
+      "ancilla_garbage_batches": 0,
+      "average_toffoli_unrounded": 741628.646,
+      "ops": 10233098,
+      "ops_sha256": "01829912079def4eb61d855c8d3c2653e3d9005fca7da2f99c45990fe848fd89",
+      "timings": {
+        "compile": {
+          "wall_seconds": 58.5,
+          "max_rss_kib": 2316244.0,
+          "user_seconds": 63.12,
+          "system_seconds": 3.52
+        },
+        "build": {
+          "wall_seconds": 126.54,
+          "max_rss_kib": 3862076.0,
+          "user_seconds": 119.5,
+          "system_seconds": 7.02
+        },
+        "evaluate": {
+          "wall_seconds": 12.62,
+          "max_rss_kib": 564324.0,
+          "user_seconds": 12.5,
+          "system_seconds": 0.11
+        }
+      }
+    },
+    "candidate": {
+      "score": {
+        "score": 915170186,
+        "metrics": {
+          "toffoli": 741629,
+          "qubits": 1234
+        }
+      },
+      "shots": 9024,
+      "classical_errors": 0,
+      "phase_garbage_batches": 0,
+      "ancilla_garbage_batches": 0,
+      "average_toffoli_unrounded": 741628.646,
+      "ops": 10233098,
+      "ops_sha256": "01829912079def4eb61d855c8d3c2653e3d9005fca7da2f99c45990fe848fd89",
+      "timings": {
+        "compile": {
+          "wall_seconds": 39.53,
+          "max_rss_kib": 2317620.0,
+          "user_seconds": 39.98,
+          "system_seconds": 1.97
+        },
+        "build": {
+          "wall_seconds": 126.6,
+          "max_rss_kib": 3960568.0,
+          "user_seconds": 119.44,
+          "system_seconds": 7.13
+        },
+        "evaluate": {
+          "wall_seconds": 13.08,
+          "max_rss_kib": 564312.0,
+          "user_seconds": 12.94,
+          "system_seconds": 0.14
+        }
+      }
+    }
+  },
+  "focused_tests": {
+    "passed": 4,
+    "failed": 0,
+    "exhaustive_cases": 23168,
+    "full_circuit_inverse_note": "Focused tests check gate-reversed inverse; no separate full-circuit reverse pass is claimed."
+  },
+  "wrapper_caveat": "The baseline builder itself exited 0 and emitted ops.bin; replacing the reporting wrapper during that run caused its reporting tail to exit 2. Artifacts were checked before the untouched evaluator passed all 9024 shots."
+}

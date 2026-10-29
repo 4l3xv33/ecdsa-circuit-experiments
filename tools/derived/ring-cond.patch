@@ -1,0 +1,83 @@
+--- a/ring-cond.rs
++++ b/ring-cond.rs
+@@ -59 +59,4 @@
+-struct Vals { node: Vec<(u8, u32, u32)>, h: HashMap<(u8, u32, u32), u32>, store: Vec<Vec<u32>>, hs: HashMap<Vec<u32>, u32> }
++const T_MONO: u8 = 7;
++const PRODUCT_CAP: usize = 64;
++const DEGREE_CAP: usize = 16;
++struct Vals { node: Vec<(u8, u32, u32)>, h: HashMap<(u8, u32, u32), u32>, store: Vec<Vec<u32>>, hs: HashMap<Vec<u32>, u32>, mono: Vec<Vec<u32>>, hm: HashMap<Vec<u32>,u32> }
+@@ -61 +64 @@
+-    fn new() -> Self { Vals { node: vec![(0, 0, 0), (1, 0, 0)], h: HashMap::new(), store: Vec::new(), hs: HashMap::new() } }
++    fn new() -> Self { Vals { node: vec![(0, 0, 0), (1, 0, 0)], h: HashMap::new(), store: Vec::new(), hs: HashMap::new(), mono: Vec::new(), hm: HashMap::new() } }
+@@ -66,0 +70,28 @@
++    // Boolean-ring normalization. Unexpanded subexpressions are immutable opaque
++    // atoms. Distribution and x*x=x are exact even when those atoms are dependent.
++    // Caps only reduce precision; they never identify unequal functions.
++    fn terms(&self, a:u32)->Vec<u32>{
++        if a==ZERO {vec![]} else if self.node[a as usize].0==T_SET {
++            self.store[self.node[a as usize].1 as usize].clone()
++        } else {vec![a]}
++    }
++    fn factors(&self,a:u32)->Vec<u32>{
++        if a==ONE {vec![]} else if self.node[a as usize].0==T_MONO {
++            self.mono[self.node[a as usize].1 as usize].clone()
++        } else {vec![a]}
++    }
++    fn monomial(&mut self, fs:Vec<u32>)->u32{
++        if fs.is_empty(){return ONE;} if fs.len()==1{return fs[0];}
++        if let Some(&id)=self.hm.get(&fs){return id;}
++        let si=self.mono.len() as u32;self.mono.push(fs.clone());
++        let id=self.node.len() as u32;self.node.push((T_MONO,si,0));self.hm.insert(fs,id);id
++    }
++    fn poly(&mut self,terms:Vec<u32>)->u32{
++        match terms.len(){
++            0=>ZERO,1=>terms[0],_=>{
++                if let Some(&id)=self.hs.get(&terms){return id;}
++                let si=self.store.len() as u32;self.store.push(terms.clone());
++                let id=self.node.len() as u32;self.node.push((T_SET,si,0));self.hs.insert(terms,id);id
++            }
++        }
++    }
+@@ -70 +101,16 @@
+-        let (x, y) = if a < b { (a, b) } else { (b, a) }; self.mk(T_AND, x, y)
++        let (x,y)=if a<b{(a,b)}else{(b,a)};
++        if let Some(&id)=self.h.get(&(T_AND,x,y)){return id;}
++        let aa=self.terms(a);let bb=self.terms(b);
++        if aa.len()*bb.len()>PRODUCT_CAP{return self.mk(T_AND,x,y);}
++        let mut products=Vec::with_capacity(aa.len()*bb.len());
++        for &u in &aa{for &w in &bb{
++            let mut fs=self.factors(u);fs.extend(self.factors(w));fs.sort_unstable();fs.dedup();
++            if fs.len()>DEGREE_CAP{return self.mk(T_AND,x,y);}
++            products.push(self.monomial(fs));
++        }}
++        products.sort_unstable();
++        let mut terms=Vec::new();let mut i=0;
++        while i<products.len(){let mut j=i+1;while j<products.len()&&products[j]==products[i]{j+=1;}
++            if (j-i)%2==1{terms.push(products[i]);}i=j;
++        }
++        let id=self.poly(terms);self.h.insert((T_AND,x,y),id);id
+@@ -726,0 +773,24 @@
++
++// Standalone research checks: ID reuse must imply the same truth table.
++pub fn ring_selftest(){
++    let mut v=Vals::new();
++    let mut truth:HashMap<u32,u64>=HashMap::new();truth.insert(ZERO,0);truth.insert(ONE,u64::MAX);
++    let mut pool=vec![(ZERO,0),(ONE,u64::MAX)];
++    for b in 0..6 {let id=v.opq();let mut t=0u64;for x in 0..64{if (x>>b)&1!=0{t|=1<<x;}}truth.insert(id,t);pool.push((id,t));}
++    let mut checks=0;let mut state=0xa6d92bc731e4f805u64;
++    for k in 0..50000{
++        state^=state<<13;state^=state>>7;state^=state<<17;let a=pool[state as usize%pool.len()];
++        state^=state<<13;state^=state>>7;state^=state<<17;let b=pool[state as usize%pool.len()];
++        let (id,t)=if k%2==0{(v.and(a.0,b.0),a.1&b.1)}else{(v.xor(a.0,b.0),a.1^b.1)};
++        if let Some(old)=truth.insert(id,t){assert_eq!(old,t,"ring ID merged unequal functions at {k}");}
++        pool.push((id,t));checks+=64;
++    }
++    let a=pool[2].0;let b=pool[3].0;let c=pool[4].0;
++    let ab=v.and(a,b);let ac=v.and(a,c);let bc=v.xor(b,c);let lhs=v.and(a,bc);let rhs=v.xor(ab,ac);assert_eq!(lhs,rhs);
++    let one_a=v.xor(ONE,a);assert_eq!(v.and(a,one_a),ZERO);
++    let ab_b=v.and(ab,b);assert_eq!(ab_b,ab);
++    let xy=v.xor(ab,ac);let xyz=v.and(xy,xy);assert_eq!(xyz,xy);
++    // The deliberately false identity a*b=a must fail on this exhaustive domain.
++    assert_ne!(truth[&pool[2].0]&truth[&pool[3].0],truth[&pool[2].0]);
++    println!("ring_selftest_truth_evaluations={checks}; Boolean identities and negative control passed; nodes={}",v.node.len());
++}

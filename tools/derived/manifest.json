@@ -1,0 +1,26 @@
+{
+  "paired-audit": {
+    "upstream": "src/bin/eval_circuit.rs",
+    "output": "paired-audit.rs",
+    "sha256": "5d6fb78edb8cd68d76c7719a3f90ceee48398ee7997d216f7d40f24816ff6d09",
+    "crlf_lines": []
+  },
+  "fixture-eval": {
+    "upstream": "src/bin/eval_circuit.rs",
+    "output": "fixture-eval.rs",
+    "sha256": "96410c60ebbc5abb8bdd179130c04197fad27d819fcdf0fb5857b08c9c199a79",
+    "crlf_lines": []
+  },
+  "relay-planner": {
+    "upstream": "src/point_add/pscan.rs",
+    "output": "relay-planner.rs",
+    "sha256": "0e549dd362750b49ad2e6319a36074c088cc16241f3cfee38b91857668c6857d",
+    "crlf_lines": []
+  },
+  "ring-cond": {
+    "upstream": "src/point_add/cond_pass.rs",
+    "output": "ring-cond.rs",
+    "sha256": "60ed1709e855d43bfd63569e11a4c46af721925cf4cb02c9fe491844323042ac",
+    "crlf_lines": []
+  }
+}

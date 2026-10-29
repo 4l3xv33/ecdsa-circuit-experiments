@@ -1,0 +1,298 @@
+{
+  "updated_at_utc": "2026-10-29T11:37:29.147113+00:00",
+  "fixed_input_cost_attribution": {
+    "packet": "original baseline",
+    "baseline_avg_t": 741628.645833333,
+    "generic_control_avg_t": 743218.5009973404,
+    "one_guard_generic_avg_t": 746030.559175532,
+    "lost_postpass_savings_t": 1589.8551640074002,
+    "guard_arithmetic_cost_t": 2812.058178191539,
+    "caveat": "Measurement ordering differs; phase randomness is not aligned. Counts are diagnostics."
+  },
+  "experiments": [
+    {
+      "name": "generic-control",
+      "state": "built and fixed-packet tested",
+      "Q": 1234,
+      "fresh_classical_errors": 15,
+      "original_packet_classical_errors": 0,
+      "phase_batches_original_packet": 2,
+      "diagnostic_product_original_packet": 917132246
+    },
+    {
+      "name": "cap1200",
+      "state": "generation failed",
+      "reason": "Paused rail ladder lacks recursive split; tick37 peak1312 exceeds1200",
+      "completed_compile_seconds": 33.04
+    },
+    {
+      "name": "cap1200-chunk",
+      "state": "generation failed at forward tick 69; actual peak 1201 exceeds requested 1200",
+      "change": "Enable existing exact LF_YP8_CHUNK recursion",
+      "precision": "Unchanged widths"
+    },
+    {
+      "name": "cap1200-peakdiag",
+      "state": "generation failed",
+      "reason": "Allowing actual peak reporting exposed old allocator snapshot mismatch after one new wire"
+    },
+    {
+      "name": "cap1200-native",
+      "state": "generation failed",
+      "reason": "Retaining real allocator reaches forward tick 86, where m0 comparison requires one more wire than can be shed"
+    },
+    {
+      "name": "cap1200-hybrid",
+      "state": "generation failed at forward tick 88: modular fold needs 1 more wire",
+      "change": "Exact in-place carry transport when clean comparison workspace is short; corresponding planner estimate",
+      "small_width_exhaustive_cases": 3351552,
+      "all_cases_passed": true,
+      "comparison_bit_precision": "unchanged"
+    },
+    {
+      "name": "cap1210-hybrid",
+      "state": "generation failed at forward tick 98: modular fold needs 1 more wire"
+    },
+    {
+      "name": "cap1220-hybrid",
+      "state": "Generation failed: first-step carry shortcut assumes a chunk boundary above the halving window",
+      "changes": "Uniform parameterization; guards=0 reproduces original widths; generalized terminal handling is inert with zero guards"
+    },
+    {
+      "name": "fold-expanded",
+      "state": "Targeted official-source fold arithmetic test passed",
+      "test": "f_fold_drops",
+      "seconds_test_execution": 0.7,
+      "minimum_47bit_ladder_workspace_before": 8,
+      "minimum_47bit_ladder_workspace_after": 7,
+      "precision": "unchanged"
+    },
+    {
+      "name": "cap1220-expanded",
+      "state": "Generation failed at tick 106, one wire below the forward fold floor",
+      "change": "Tested extended carry drop menu; exact full-prefix carry erasure fallback for first-step layouts below shortcut range"
+    },
+    {
+      "name": "cap1230-expanded",
+      "state": "Generation failed at tick 115, one wire below forward fold floor"
+    },
+    {
+      "name": "cap1231-expanded",
+      "state": "generation failed in forward tick 115"
+    },
+    {
+      "name": "cap1232-expanded",
+      "state": "generation failed reverse tick 120 fold inverse"
+    },
+    {
+      "name": "cap1233-expanded",
+      "state": "Built and fixed-packet evaluated",
+      "Q": 1233,
+      "T_original_packet": 743958.6237810283,
+      "diagnostic_product_original_packet": 917301447,
+      "T_fresh_packet": 743947.1742021276,
+      "fresh_classical_errors": 15,
+      "fresh_phase_error_batches": 11,
+      "artifact_sha256": "f91f79bfbea0395fcbd1bf327f69b0b9b03e9ab251add9ccc179a597f84e1d93",
+      "official_score": null,
+      "conclusion": "No product improvement; diagnostic workspace branch preserved"
+    }
+  ],
+  "future_phase_census": {
+    "eligible_hmr_values": 4879,
+    "later_canonical_wire_matches": 0,
+    "scope": "Conservative single-wire expression model; does not rule out affine parity or nonlinear reconstruction"
+  },
+  "rail_reference_findings": {
+    "status": "Diagnostic untruncated reference, not yet reconciled with actual circuit internal states",
+    "frozen_bad_inputs": 31,
+    "important_finding": "Several reference walks still have nonunit rails at the fixed 122-step endpoint even without truncation; wider storage alone cannot repair those cases. Uniform guard needs vary up to 14 bits in this diagnostic model.",
+    "data": "rail-reference-study.json"
+  },
+  "convergence_study": {
+    "inputs": 8192,
+    "fixed_common_input_domain": "ecdsafail-structural-convergence-study-v1",
+    "pinned_reference_unfinished_walks": 4,
+    "higher_window_reference_unfinished_walks": 4,
+    "exact_greedy_reference_unfinished_walks": 1,
+    "scope": "Independent untruncated integer model only. New decision logic not implemented in circuit; small sample does not prove accuracy."
+  },
+  "fold_test_cases": 2064384,
+  "guarded_conditional_rewrite_census": {
+    "levers": "mufs",
+    "guards": "all enabled",
+    "before_ops": 10233098,
+    "after_ops": 10233098,
+    "static_t_saving": 0,
+    "excluded": "reset-based lever r"
+  },
+  "duplicate_phase_census": {
+    "ccz": 179,
+    "duplicate_canonical_value_triples": 0,
+    "circuit_edited": false
+  },
+  "convergence_policy_results": {
+    "inputs": 8192,
+    "same_fixed_domain": true,
+    "lookahead_max_unfinished": 1,
+    "lookahead_product_unfinished": 1,
+    "unrestricted_original_R122_unfinished": 0,
+    "unrestricted_original_R118_unfinished": 124,
+    "unrestricted_greedy_R118_unfinished": 16,
+    "limitation": "Untruncated classical model. Unrestricted high-shift records need roughly 40 additional qubits; no new circuit implemented."
+  },
+  "inverse_fold_carry_release": {
+    "targeted_cases": 2064384,
+    "test_seconds": 0.67,
+    "passed": true,
+    "requested_cap": 1232,
+    "actual_qubits": 1234,
+    "ops": 10240296,
+    "original_packet_T": 744744.4376108156,
+    "original_packet_diagnostic_product": 919014096,
+    "original_packet_classical_errors": 0,
+    "original_packet_phase_error_batches": 1,
+    "official_score": null,
+    "caveat": "Requested cap is not actual width. Carry-release ladder fits, but forward digit/restoration and inverse restoration still peak higher."
+  },
+  "generic_rewrite_restoration": {
+    "before_ops": 10240296,
+    "after_ops": 10241568,
+    "cond_static_reduction": 84.5,
+    "measurement_outcomes_fixed": false,
+    "reset_absorption_identity_cases": 4096,
+    "reset_absorption_cases_passed": true,
+    "not_yet_fixture_evaluated": true
+  },
+  "fold_reschedule": {
+    "targeted_cases": 8257536,
+    "test_seconds": 2.69,
+    "passed": true,
+    "coverage": "56/57-bit folds, forward/inverse, fin2/fin3, emax5/6/7; exhaustive low8 bits and sampled high bits, value/phase/ancilla checks",
+    "full_circuit_status": "built and fixed-baseline-packet tested",
+    "requested_cap": 1232,
+    "actual_qubits": 1233,
+    "official_score": null,
+    "ops": 10243077,
+    "original_packet_T": 744802.6501551418,
+    "original_packet_diagnostic_product": 918342099,
+    "original_packet_classical_errors": 0,
+    "original_packet_phase_error_batches": 1
+  },
+  "ring_analysis": {
+    "selftest_truth_evaluations": 3200000,
+    "selftest_passed": true,
+    "state": "completed on baseline and rebuilt arithmetic",
+    "limits": "240s, two CPUs, 8 GiB",
+    "baseline_t_savings": 0,
+    "rebuilt_cond_static_t_savings": 84.5,
+    "rebuilt_savings_excludes_before_after_classical_passes": true,
+    "conclusion": "No substantial algebraic opportunity found"
+  },
+  "cleanup_room": {
+    "targeted_cases": 8257536,
+    "passed": true,
+    "test_seconds": 2.67,
+    "compile_seconds": 33.31,
+    "generation": "completed and baseline packet tested",
+    "actual_qubits": 1232,
+    "ops": 10243089,
+    "original_packet_T": 744814.1552526596,
+    "original_packet_diagnostic_product": 917610848,
+    "original_packet_classical_errors": 0,
+    "original_packet_phase_error_batches": 1,
+    "official_score": null
+  },
+  "initialization_study": {
+    "model_only": true,
+    "common_inputs": 8192,
+    "pinned_unfinished": 4,
+    "high_shift8_greedy_unfinished": 0,
+    "holdout_inputs": 65536,
+    "holdout_domain": "ecdsafail-initialization-holdout-v1",
+    "holdout_pinned_unfinished": 41,
+    "holdout_high_shift8_greedy_unfinished": 3,
+    "holdout_guard_max_pinned": 11,
+    "holdout_guard_max_candidate": 3,
+    "caveat": "No modified walk circuit implemented. Integer model is untruncated and not yet reconciled to actual circuit state."
+  },
+  "bdd_scan": {
+    "completed": true,
+    "native_toffolis_removed": 0,
+    "other_rewrites": 31833,
+    "original_ops": 10233098,
+    "after_ops": 10220522,
+    "selftest_truth_evaluations": 6400000,
+    "selftest_passed": true,
+    "full_candidate_not_evaluated": true,
+    "conclusion": "No scored-resource benefit; retained as analysis evidence."
+  },
+  "sum_budget_record": {
+    "rule": "three exponents each 0..7, sum<=10",
+    "allowed_states": 256,
+    "stored_qubits": 8,
+    "method": "XOR pivot into other eight bits, measure pivot, restore by weighted threshold >=11",
+    "unpack_toffolis": 7,
+    "temporary_qubits": 6,
+    "official_simulator_pack_unpack_cases": 32768,
+    "official_simulator_threshold_cases": 16384,
+    "all_measurement_outcomes": true,
+    "negative_control_detected": true,
+    "model_common_unfinished": 0,
+    "model_common_inputs": 8192,
+    "model_holdout_unfinished": 6,
+    "model_holdout_inputs": 65536,
+    "pinned_holdout_unfinished": 41,
+    "caveat": "Exact primitive under enforced sum bound. Complete integrated and compact circuits were built and fixture-tested, but remain invalid and cost more than the target. Model-only decision improvements remain unintegrated.",
+    "integration": "sum-record.rs, a2-sum.rs, leapfrog-sum.rs; first 6 and final incomplete groups retain original record; approximate majority pack disabled",
+    "sym_window_model": {
+      "inputs": 8192,
+      "not_parked": 1,
+      "max_width_excess": 5,
+      "scope": "untruncated integer model, not implemented in circuit"
+    },
+    "integrated_choice_cases": 35389440,
+    "integrated_threshold_lifecycle_cases": 98304,
+    "integrated_tests_passed": true,
+    "compile_seconds": 33.51,
+    "full_build": {
+      "requested_cap": 1235,
+      "ops": 10363206,
+      "result": "complete",
+      "fixed_packet_tests": "completed",
+      "actual_qubits": 1246,
+      "baseline_packet_T": 747914.5855496454,
+      "baseline_packet_product": 931902090,
+      "baseline_packet_classical_errors": 4,
+      "baseline_packet_phase_batches": 2,
+      "fresh_T": 747920.1223404255,
+      "fresh_product": 931908320,
+      "fresh_classical_errors": 10,
+      "fresh_phase_batches": 9,
+      "build_seconds": 40.68,
+      "peak_rss_kib": 3513032
+    },
+    "high_cap_failure": "cap1270: old deep-shed planner requires whole block shed but selected none; preserved assertion, lower-cap supported shape builds",
+    "borrow_variant": {
+      "Q": 1245,
+      "baseline_T": 747398.3557180851,
+      "fresh_T": 747388.3398714539,
+      "fresh_product": 930498060,
+      "baseline_classical_errors": 4,
+      "fresh_classical_errors": 10,
+      "actual_peak": "choice ticks116,117,118",
+      "official_score": null
+    },
+    "integration_status": "Compact complete build and common-input diagnostics; no valid win"
+  },
+  "latest": {
+    "variant": "sum-record-post",
+    "Q": 1235,
+    "fresh_T": 747308.679410461,
+    "fresh_product": 922926615,
+    "fresh_classical_errors": 10,
+    "fresh_phase_batches": 6,
+    "original_packet_product": 922909325,
+    "official_score": null
+  }
+}

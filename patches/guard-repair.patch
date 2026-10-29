@@ -1,0 +1,799 @@
+--- a/src/point_add/mod.rs
++++ b/src/point_add/mod.rs
+@@ -0,0 +1,2 @@
++mod adjacent_factor;
++mod relay_cache;
+@@ -251 +253 @@
+-        narrow::square_entry(circ);
++        // Diagnostic guard-width build: retain actual allocator state.
+@@ -593,71 +595 @@
+-    ops = cond_pass::run(ops);
+-    // square top carries (SL_SQTOP; unset = this gate list byte for byte): the square's inverse-row
+-    // top carries built only under the top bit that reads them (sqtop_pass.rs)
+-    ops = sqtop_pass::run(ops);
+-    ops = sqdepth2_pass::run(ops);
+-    ops = phase_cubic::run(ops);
+-    ops = rowcut_pass::run(ops);
+-    ops = reader_pass::run(ops);
+-    // y42-railtop (leapfrog.rs `Y42_BOUND`; false = this gate list byte for byte): the edits of the four bound
+-    // passes above as one table, carried to this tree's stream with the rail switches on
+-    // round17 a2-build v5w: main's seven stream-bound passes (and cond_pass ur / zero_force between them) replayed as
+-    // one edit table bound to this stream after reader_pass (frozen_stack.rs): the harness's re-anchoring of main's
+-    // edits on lever A's stream (2 census_anchored clusters) plus the generic passes' result, op for op
+-    // the 6-hunk table placed by the stream prefix it edits, the two generic classical-control passes and the proved
+-    // CCX cuts bound to this stream (compose_post.rs)
+-    ops = compose_post::run(ops);
+-    ops = stream_pipeline::run(ops);
+-    ops = post_pipeline::run(ops);
+-    ops = lane3_sigcut::run(ops);
+-    ops = source_edits::run(ops, include_str!("our_cuts.txt"));
+-    ops = rail_output_erase::run(ops);
+-    ops = source_edits::run(ops, include_str!("our_cuts2.txt"));
+-    ops = source_edits::run(ops, include_str!("builder_followup.txt"));
+-    ops = source_edits::run(ops, include_str!("value_followup.txt"));
+-    if std::env::var("BARREL_FOLLOWUP").as_deref()==Ok("1"){ops=source_edits::run(ops,include_str!("barrel_followup.txt"));}
+-    // Lane R: third post-builder table, re-mined on spookyfrog 20 after barrel_followup.
+-    // All edits are bound to the complete final pre-tail stream. ON by default (the submitted stream).
+-    ops = source_edits::run(ops, include_str!("lane_r_stack.txt"));
+-    ops=source_edits::run(ops,include_str!("score_followup.txt"));
+-    ops=source_edits::run(ops,include_str!("guarded_followup.txt"));
+-    let a: &[u32] = &[
+-        342080,1,3,12,65535,65535,27,1573,65535,65535,10,65535,27,1230,65535,65535,65535,12,65535,65535,27,1573,65535,65535,4,65535,65535,65535,1573,65535,65535,
+-        70345,1,3,12,65535,65535,829,1573,65535,65535,10,65535,829,1228,65535,65535,65535,12,65535,65535,829,1573,65535,65535,4,65535,65535,65535,1573,65535,65535,
+-        13705,1,3,12,65535,65535,36,1573,65535,65535,10,65535,36,1227,65535,65535,65535,12,65535,65535,36,1573,65535,65535,4,65535,65535,65535,1573,65535,65535,
+-        448730,1,1,13,776,772,1142,65535,65535,65535,10,65535,1230,1142,65535,65535,65535,
+-        80886,1,1,13,731,825,743,65535,65535,65535,10,65535,1228,743,65535,65535,65535,
+-        16174,1,1,13,823,827,1129,65535,65535,65535,10,65535,1227,1129,65535,65535,65535,
+-        1886899,1,3,12,65535,65535,612,1389,65535,65535,10,65535,612,1233,65535,65535,65535,12,65535,65535,612,1389,65535,65535,4,65535,65535,65535,1389,65535,65535,
+-        11833,1,1,13,147,150,1193,65535,65535,65535,10,65535,1233,1193,65535,65535,65535,
+-        7242644,1,3,12,65535,65535,4,642,65535,65535,10,65535,4,1127,65535,65535,65535,12,65535,65535,4,642,65535,65535,4,65535,65535,65535,642,65535,65535,
+-        6,1,3,12,65535,65535,1038,642,65535,65535,10,65535,1038,186,65535,65535,65535,12,65535,65535,1038,642,65535,65535,4,65535,65535,65535,642,65535,65535,
+-        6,1,3,12,65535,65535,2,642,65535,65535,10,65535,2,1228,65535,65535,65535,12,65535,65535,2,642,65535,65535,4,65535,65535,65535,642,65535,65535,
+-        31629,1,2,13,848,258,1127,65535,65535,65535,10,65535,1127,92,65535,65535,65535,13,848,258,1127,65535,65535,65535,
+-        67,1,2,13,309,258,186,65535,65535,65535,10,65535,186,803,65535,65535,65535,13,309,258,186,65535,65535,65535,
+-        66,1,2,13,310,258,1228,65535,65535,65535,10,65535,1228,848,65535,65535,65535,13,310,258,1228,65535,65535,65535,
+-        6361,1,2,7,65535,65535,92,65535,683,65535,10,65535,92,738,65535,65535,65535,7,65535,65535,92,65535,683,65535,
+-        270,1,2,7,65535,65535,803,65535,684,65535,10,65535,803,92,65535,65535,65535,7,65535,65535,803,65535,684,65535,
+-        5336,1,2,9,65535,764,1211,65535,703,65535,10,65535,738,803,65535,65535,65535,9,65535,764,1211,65535,703,65535,
+-        1,1,2,7,65535,65535,848,65535,704,65535,10,65535,848,738,65535,65535,65535,7,65535,65535,848,65535,704,65535,
+-        2545,1,2,8,65535,511,803,65535,65535,65535,10,65535,803,1211,65535,65535,65535,8,65535,511,803,65535,65535,65535,
+-        71,1,2,8,65535,287,92,65535,65535,65535,10,65535,92,1228,65535,65535,65535,8,65535,287,92,65535,65535,65535,
+-        69,1,2,8,65535,286,738,65535,65535,65535,10,65535,738,1231,65535,65535,65535,8,65535,286,738,65535,65535,65535,
+-        13305,1,1,13,1034,707,705,65535,65535,65535,10,65535,1231,705,65535,65535,65535,
+-        44499,1,1,13,707,517,796,65535,65535,65535,10,65535,1228,796,65535,65535,65535,
+-        4,1,1,13,834,1028,4,65535,65535,65535,10,65535,1211,4,65535,65535,65535,
+-    ];
+-    let mut b = String::from("10232898 b225aaa284f3cd7dda31c4499a14b8111d5c8e79b9549c9245dd6001b7690f8d\n");
+-    let (mut c, mut d) = (0, 0);
+-    while c < a.len() {
+-        d += a[c];
+-        b.push_str(&format!("{} {} {}", d, a[c+1], a[c+2]));
+-        let e = c + 3 + 7 * (a[c+1] + a[c+2]) as usize;
+-        for &f in &a[c+3..e] {
+-            b.push_str(&format!(" {}", if f == 65535 { u64::MAX } else { f as u64 }));
+-        }
+-        b.push('\n');
+-        c = e;
+-    }
+-    ops = source_edits::run(ops, &b);
+-    ops=source_edits::run(ops,include_str!("affine_followup.txt"));
+-    ops=source_edits::run(ops,include_str!("union_followup.txt"));
++    // Diagnostic guard-width build: legacy stream-bound rewrites are inapplicable.
+--- a/src/point_add/leapfrog.rs
++++ b/src/point_add/leapfrog.rs
+@@ -6487 +6487 @@
+-        assert_eq!(r.len(), 5, "N2: a parked rail holds 5 wires (bits 1..5)");
++        assert!(r.len() >= 5, "N2: guarded parked rail must retain the original sign-copy width");
+@@ -6491,2 +6491,3 @@
+-        let sg = r[4];
+-        for i in 0..4 {
++        let n = r.len() - 1;
++        let sg = r[n];
++        for i in 0..n {
+@@ -6498,2 +6499,2 @@
+-        N2_LENT.with(|l| l.borrow_mut()[ri] = r[0..4].to_vec());
+-        r.drain(0..4);
++        N2_LENT.with(|l| l.borrow_mut()[ri] = r[0..n].to_vec());
++        r.drain(0..n);
+@@ -6511,2 +6512,4 @@
+-        let mut nr = Vec::with_capacity(5);
+-        for i in 0..4 {
++        let n = lent.len();
++        assert!(n >= 4, "N2: missing parked rail loan metadata");
++        let mut nr = Vec::with_capacity(n + 1);
++        for i in 0..n {
+@@ -7929 +7932,9 @@
+-    let r0p = std::mem::take(&mut wk.r[0]);
++    let mut r0p = std::mem::take(&mut wk.r[0]);
++    // At the seed boundary each signed add/halve contracts operands bounded
++    // by 2^256. Held bits above bit 256 are therefore sign copies, even when
++    // the conservative table retains an extra guard wire.
++    while r0p.len() > N {
++        let top = r0p.pop().unwrap();
++        c.cx(*r0p.last().unwrap(), top);
++        c.free(top);
++    }
+@@ -7948 +7959,7 @@
+-    let r1 = std::mem::take(&mut wk.r[1]);
++    let mut r1 = std::mem::take(&mut wk.r[1]);
++    // Seed R1 is bounded by 2^256; only redundant sign copies lie above N.
++    while r1.len() > N {
++        let top = r1.pop().unwrap();
++        c.cx(*r1.last().unwrap(), top);
++        c.free(top);
++    }
+--- a/src/point_add/a2_rails.rs
++++ b/src/point_add/a2_rails.rs
+@@ -243 +243 @@
+-        ("HEO_PIN_PP_WALK_MAX_QUBITS", "1234"),
++        ("HEO_PIN_PP_WALK_MAX_QUBITS", "1236"),
+--- a/src/point_add/leapfrog_data/a2_R122_steps.txt
++++ b/src/point_add/leapfrog_data/a2_R122_steps.txt
+@@ -1,123 +1,123 @@
+-# rsim peel refit: R=122 beta=1.020 nfit=2000000 NFMAX=2 cols W n0..n1 nchoice nb; spec t=0,M=2,e=7,B=6,K=220,L=22;t=1,L=13;t=4,L=17;t=9,L=22;t=81,L=19;t=91,L=17;t=102,L=15;t=107,L=13;t=113,L=11;t=121,e=3
+-257 258 258 258 257
+-257 258 258 258 257
+-257 258 258 258 257
+-257 258 258 257 256
+-257 257 257 256 254
+-256 256 255 254 253
+-254 254 254 253 251
+-253 253 252 251 250
+-251 251 250 249 248
+-249 249 248 247 246
+-247 247 246 245 244
+-245 245 244 243 242
+-243 243 242 241 240
+-241 241 240 239 238
+-239 239 238 237 236
+-237 237 236 235 234
+-235 235 234 233 232
+-233 233 232 231 230
+-231 231 230 229 228
+-229 229 228 227 226
+-227 227 226 225 224
+-225 225 224 223 222
+-223 223 222 221 220
+-220 220 220 219 218
+-219 219 218 217 216
+-217 217 216 215 214
+-214 214 214 213 211
+-213 213 212 211 210
+-210 210 209 208 207
+-208 208 207 206 205
+-206 206 205 204 203
+-204 204 203 202 201
+-202 202 201 200 199
+-200 200 199 198 197
+-198 198 197 196 195
+-195 195 194 194 193
+-193 193 192 191 190
+-191 191 190 189 188
+-189 189 188 187 186
+-187 187 186 185 184
+-185 185 184 183 182
+-183 183 182 181 180
+-180 181 180 179 178
+-178 178 177 176 175
+-176 176 175 174 173
+-174 174 173 172 171
+-172 172 171 170 169
+-169 169 169 168 167
+-167 167 166 165 164
+-165 165 164 163 162
+-163 163 162 161 160
+-161 161 160 159 158
+-159 159 158 157 156
+-157 157 156 155 154
+-155 155 154 153 152
+-153 153 152 151 150
+-151 151 150 149 148
+-148 148 147 147 146
+-146 146 145 145 144
+-144 144 143 143 141
+-143 143 142 141 140
+-140 140 139 138 137
+-138 138 137 136 135
+-136 136 135 134 133
+-134 134 133 132 131
+-131 131 130 130 129
+-129 129 128 127 126
+-127 127 126 125 124
+-125 125 124 123 122
+-122 122 121 120 119
+-120 120 119 118 117
+-117 117 117 116 115
+-115 115 114 113 112
+-113 113 112 111 110
+-111 111 110 109 108
+-109 109 108 107 106
+-107 107 106 105 104
+-104 104 103 102 101
+-102 102 101 100 99
+-100 100 99 98 97
+-98 98 97 96 95
+-96 96 95 94 92
+-93 93 92 91 90
+-91 91 90 89 88
+-89 89 88 87 86
+-87 87 86 85 84
+-85 85 84 83 82
+-82 82 81 81 80
+-80 80 79 78 77
+-78 78 77 76 75
+-76 76 75 74 73
+-73 73 72 72 71
+-71 71 71 70 69
+-69 69 68 67 66
+-67 67 66 65 64
+-65 65 64 63 62
+-62 62 61 60 59
+-60 60 59 58 57
+-58 58 57 56 55
+-56 56 55 54 53
+-54 54 53 52 51
+-51 51 50 49 48
+-49 49 48 48 47
+-47 47 46 45 44
+-44 44 43 43 42
+-42 42 41 40 39
+-40 40 39 38 37
+-38 38 37 36 35
+-36 36 35 34 33
+-34 34 33 32 31
+-31 31 30 29 28
+-29 29 28 28 27
+-27 27 26 25 24
+-24 24 23 23 22
+-22 22 21 20 19
+-20 20 19 18 17
+-18 18 17 16 15
+-16 16 15 14 13
+-13 13 13 12 11
+-11 11 10 9 8
+-9 9 8 7 6
+-6 3 3 6 5
++# Diagnostic +1 guard bit at every rail stage; frozen tick count and choice anchors unchanged.  rsim peel refit: R=122 beta=1.020 nfit=2000000 NFMAX=2 cols W n0..n1 nchoice nb; spec t=0,M=2,e=7,B=6,K=220,L=22;t=1,L=13;t=4,L=17;t=9,L=22;t=81,L=19;t=91,L=17;t=102,L=15;t=107,L=13;t=113,L=11;t=121,e=3
++258 259 259 259 258
++258 259 259 259 258
++258 259 259 259 258
++258 259 259 258 257
++258 258 258 257 255
++257 257 256 255 254
++255 255 255 254 252
++254 254 253 252 251
++252 252 251 250 249
++250 250 249 248 247
++248 248 247 246 245
++246 246 245 244 243
++244 244 243 242 241
++242 242 241 240 239
++240 240 239 238 237
++238 238 237 236 235
++236 236 235 234 233
++234 234 233 232 231
++232 232 231 230 229
++230 230 229 228 227
++228 228 227 226 225
++226 226 225 224 223
++224 224 223 222 221
++221 221 221 220 219
++220 220 219 218 217
++218 218 217 216 215
++215 215 215 214 212
++214 214 213 212 211
++211 211 210 209 208
++209 209 208 207 206
++207 207 206 205 204
++205 205 204 203 202
++203 203 202 201 200
++201 201 200 199 198
++199 199 198 197 196
++196 196 195 195 194
++194 194 193 192 191
++192 192 191 190 189
++190 190 189 188 187
++188 188 187 186 185
++186 186 185 184 183
++184 184 183 182 181
++181 182 181 180 179
++179 179 178 177 176
++177 177 176 175 174
++175 175 174 173 172
++173 173 172 171 170
++170 170 170 169 168
++168 168 167 166 165
++166 166 165 164 163
++164 164 163 162 161
++162 162 161 160 159
++160 160 159 158 157
++158 158 157 156 155
++156 156 155 154 153
++154 154 153 152 151
++152 152 151 150 149
++149 149 148 148 147
++147 147 146 146 145
++145 145 144 144 142
++144 144 143 142 141
++141 141 140 139 138
++139 139 138 137 136
++137 137 136 135 134
++135 135 134 133 132
++132 132 131 131 130
++130 130 129 128 127
++128 128 127 126 125
++126 126 125 124 123
++123 123 122 121 120
++121 121 120 119 118
++118 118 118 117 116
++116 116 115 114 113
++114 114 113 112 111
++112 112 111 110 109
++110 110 109 108 107
++108 108 107 106 105
++105 105 104 103 102
++103 103 102 101 100
++101 101 100 99 98
++99 99 98 97 96
++97 97 96 95 93
++94 94 93 92 91
++92 92 91 90 89
++90 90 89 88 87
++88 88 87 86 85
++86 86 85 84 83
++83 83 82 82 81
++81 81 80 79 78
++79 79 78 77 76
++77 77 76 75 74
++74 74 73 73 72
++72 72 72 71 70
++70 70 69 68 67
++68 68 67 66 65
++66 66 65 64 63
++63 63 62 61 60
++61 61 60 59 58
++59 59 58 57 56
++57 57 56 55 54
++55 55 54 53 52
++52 52 51 50 49
++50 50 49 49 48
++48 48 47 46 45
++45 45 44 44 43
++43 43 42 41 40
++41 41 40 39 38
++39 39 38 37 36
++37 37 36 35 34
++35 35 34 33 32
++32 32 31 30 29
++30 30 29 29 28
++28 28 27 26 25
++25 25 24 24 23
++23 23 22 21 20
++21 21 20 19 18
++19 19 18 17 16
++17 17 16 15 14
++14 14 14 13 12
++12 12 11 10 9
++10 10 9 8 7
++7 4 4 7 6
+--- /dev/null
++++ b/src/point_add/adjacent_factor.rs
+@@ -0,0 +1,274 @@
++//! Exact factoring of nearby Toffoli gates with a shared control and target.
++//!
++//! CCX(a,b,t); CCX(a,c,t) equals CX(b,c); CCX(a,c,t); CX(b,c):
++//! a*b XOR a*c = a*(b XOR c). All four wires are distinct. The borrowed
++//! control c is restored, including when it starts dirty or entangled.
++//! Every replacement inherits the same classical condition. Adjacency means
++//! the surrounding condition stack is also unchanged. No phase gates,
++//! measurements, fresh qubits, or input-dependent assumptions are introduced.
++
++use crate::circuit::{Op, OperationType as K, NO_BIT, NO_QUBIT, NO_REG};
++
++fn replacement(left: Op, right: Op) -> Option<[Op; 3]> {
++    if left.kind != K::CCX || right.kind != K::CCX
++        || left.q_target != right.q_target
++        || left.c_condition != right.c_condition
++    {
++        return None;
++    }
++    for op in [left, right] {
++        if op.c_target != NO_BIT || op.r_target != NO_REG
++            || [op.q_control1, op.q_control2, op.q_target].contains(&NO_QUBIT)
++            || op.q_control1 == op.q_control2
++            || op.q_target == op.q_control1 || op.q_target == op.q_control2
++        {
++            return None;
++        }
++    }
++    let a = [left.q_control1, left.q_control2];
++    let b = [right.q_control1, right.q_control2];
++    let common = a.iter().copied().find(|q| b.contains(q))?;
++    let other_left = a.iter().copied().find(|q| *q != common)?;
++    let other_right = b.iter().copied().find(|q| *q != common)?;
++    if other_left == other_right { return None; }
++
++    let mut xor = Op::empty();
++    xor.kind = K::CX;
++    xor.q_control1 = other_left;
++    xor.q_target = other_right;
++    xor.c_condition = left.c_condition;
++    let mut product = left;
++    product.q_control1 = common;
++    product.q_control2 = other_right;
++    Some([xor, product, xor])
++}
++
++// Two controlled-X gates commute if neither target is a control of the
++// other. Their classical conditions are read-only throughout the window.
++// No phase, reset, measurement, bit write, or stack operation is crossed.
++fn commutes_with_ccx(middle: Op, right: Op) -> bool {
++    if !matches!(middle.kind, K::X | K::CX | K::CCX) { return false; }
++    if middle.q_target == right.q_control1 || middle.q_target == right.q_control2 { return false; }
++    if matches!(middle.kind, K::CX | K::CCX) && middle.q_control1 == right.q_target { return false; }
++    if middle.kind == K::CCX && middle.q_control2 == right.q_target { return false; }
++    true
++}
++
++fn find_pair(ops: &[Op], start: usize) -> Option<(usize, [Op; 3])> {
++    if ops[start].kind != K::CCX { return None; }
++    const WINDOW: usize = 32;
++    for end in start + 1..ops.len().min(start + WINDOW) {
++        if let Some(gates) = replacement(ops[start], ops[end]) {
++            if ops[start + 1..end].iter().all(|m| commutes_with_ccx(*m, ops[end])) {
++                return Some((end, gates));
++            }
++        }
++        if !matches!(ops[end].kind, K::X | K::CX | K::CCX) { break; }
++    }
++    None
++}
++
++pub(super) fn run(ops: Vec<Op>) -> Vec<Op> {
++    // Reserve the exact expansion so Vec never doubles a large op buffer.
++    let mut count = 0usize;
++    let mut scan = 0;
++    while scan + 1 < ops.len() {
++        if let Some((end, _)) = find_pair(&ops, scan) {
++            count += 1;
++            scan = end + 1;
++        } else {
++            scan += 1;
++        }
++    }
++    if count == 0 {
++        eprintln!("ADJACENT_FACTOR pairs=0 Toffoli_removed=0 extra_CNOTs=0");
++        return ops;
++    }
++    let mut out = Vec::with_capacity(ops.len() + count);
++    let mut i = 0;
++    let mut factored = 0usize;
++    while i < ops.len() {
++        if i + 1 < ops.len() {
++            if let Some((end, gates)) = find_pair(&ops, i) {
++                out.extend_from_slice(&gates);
++                out.extend_from_slice(&ops[i + 1..end]);
++                i = end + 1;
++                factored += 1;
++                continue;
++            }
++        }
++        out.push(ops[i]);
++        i += 1;
++    }
++    eprintln!("ADJACENT_FACTOR pairs={factored} Toffoli_removed={factored} extra_CNOTs={}", 2 * factored);
++    out
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::circuit::{BitId, QubitId};
++    use crate::sim::Simulator;
++    use sha3::{digest::ExtendableOutput, Shake256};
++
++    fn ccx(a: u64, b: u64, target: u64, condition: BitId) -> Op {
++        let mut op = Op::empty();
++        op.kind = K::CCX;
++        op.q_control1 = QubitId(a);
++        op.q_control2 = QubitId(b);
++        op.q_target = QubitId(target);
++        op.c_condition = condition;
++        op
++    }
++
++    // This includes dirty borrowed controls, both target values, all control
++    // orderings, classical enable/disable, and a surrounding condition stack.
++    // Pure CX/CCX permutations have no phase terms: exhaustive basis equality
++    // therefore also establishes equality on arbitrary superpositions.
++    #[test]
++    fn exhaustive_basis_conditions_and_inverse() {
++        for a in 0..4 {
++            for b in 0..4 {
++                for c in 0..4 {
++                    for target in 0..4 {
++                        if a == b || a == c || a == target || b == c || b == target || c == target { continue; }
++                        for swapped_left in [false, true] {
++                            for swapped_right in [false, true] {
++                                for condition in [NO_BIT, BitId(0)] {
++                                    let left = if swapped_left { ccx(b,a,target,condition) } else { ccx(a,b,target,condition) };
++                                    let right = if swapped_right { ccx(c,a,target,condition) } else { ccx(a,c,target,condition) };
++                                    let replacement = replacement(left, right).expect("factorable");
++                                    for gate in replacement { gate.validate(); }
++                                    for bits in 0..4u64 {
++                                        for state in 0..16u64 {
++                                            let mut rng1 = Shake256::default().finalize_xof();
++                                            let mut rng2 = Shake256::default().finalize_xof();
++                                            let mut original = Simulator::new(4, 2, &mut rng1);
++                                            let mut optimized = Simulator::new(4, 2, &mut rng2);
++                                            for q in 0..4 {
++                                                let value = if (state >> q) & 1 == 1 { u64::MAX } else { 0 };
++                                                original.qubits[q] = value;
++                                                optimized.qubits[q] = value;
++                                            }
++                                            for bit in 0..2 {
++                                                let value = if (bits >> bit) & 1 == 1 { u64::MAX } else { 0 };
++                                                original.bits[bit] = value;
++                                                optimized.bits[bit] = value;
++                                            }
++                                            let initial = optimized.qubits.clone();
++                                            let mut push = Op::empty();
++                                            push.kind = K::PushCondition;
++                                            push.c_condition = BitId(1);
++                                            let mut pop = Op::empty();
++                                            pop.kind = K::PopCondition;
++                                            original.apply_iter([push,left,right,pop].iter());
++                                            let forward = [push,replacement[0],replacement[1],replacement[2],pop];
++                                            optimized.apply_iter(forward.iter());
++                                            assert_eq!(original.qubits, optimized.qubits);
++                                            assert_eq!(original.bits, optimized.bits);
++                                            assert_eq!(original.phase, 0);
++                                            assert_eq!(optimized.phase, 0);
++                                            assert_eq!(original.stats.toffoli_gates, 2 * optimized.stats.toffoli_gates);
++                                            let inverse = [push,replacement[2],replacement[1],replacement[0],pop];
++                                            optimized.apply_iter(inverse.iter());
++                                            assert_eq!(optimized.qubits, initial);
++                                        }
++                                    }
++                                }
++                            }
++                        }
++                    }
++                }
++            }
++        }
++    }
++
++    #[test]
++    fn rejects_unsafe_or_nonmatching_pairs() {
++        let left = ccx(0, 1, 3, NO_BIT);
++        for right in [ccx(0,2,4,NO_BIT), ccx(0,2,3,BitId(0)), ccx(0,1,3,NO_BIT), ccx(2,4,3,NO_BIT), ccx(0,3,3,NO_BIT)] {
++            assert!(replacement(left, right).is_none());
++        }
++        let mut phase_gate = ccx(0,2,3,NO_BIT);
++        phase_gate.kind = K::CCZ;
++        assert!(replacement(left, phase_gate).is_none());
++    }
++
++    #[test]
++    fn preserves_barriers_and_nonoverlapping_order() {
++        let left = ccx(0,1,3,NO_BIT);
++        let right = ccx(0,2,3,NO_BIT);
++        let mut barrier = Op::empty();
++        barrier.kind = K::BitStore0;
++        barrier.c_target = BitId(0);
++        let untouched = vec![left,barrier,right];
++        assert_eq!(run(untouched.clone()), untouched);
++        let expected = replacement(left,right).unwrap();
++        let result = run(vec![left,right,barrier,left,right]);
++        assert_eq!(result, [expected.as_slice(), &[barrier], expected.as_slice()].concat());
++    }
++
++    #[test]
++    fn exhaustive_commuting_windows() {
++        let left = ccx(0,1,3,BitId(0));
++        let right = ccx(0,2,3,BitId(0));
++        let mut checked = 0;
++        let mut moved = 0;
++        for kind in [K::X, K::CX, K::CCX] {
++            for target in 0..5 {
++                for a in 0..5 {
++                    for b in 0..5 {
++                        if (kind == K::X && (a != 0 || b != 0))
++                            || (kind == K::CX && (a == target || b != 0))
++                            || (kind == K::CCX && (a == b || a == target || b == target)) { continue; }
++                        let mut middle = Op::empty();
++                        middle.kind = kind;
++                        middle.q_target = QubitId(target);
++                        middle.c_condition = BitId(1);
++                        if kind != K::X { middle.q_control1 = QubitId(a); }
++                        if kind == K::CCX { middle.q_control2 = QubitId(b); }
++                        middle.validate();
++                        let original_ops = vec![left,middle,right];
++                        let optimized_ops = if commutes_with_ccx(middle,right) {
++                            assert!(find_pair(&original_ops,0).is_some());
++                            moved += 1;
++                            run(original_ops.clone())
++                        } else {
++                            assert!(find_pair(&original_ops,0).is_none());
++                            original_ops.clone()
++                        };
++                        for bits in 0..4u64 {
++                            for state in 0..32u64 {
++                                let mut rng1 = Shake256::default().finalize_xof();
++                                let mut rng2 = Shake256::default().finalize_xof();
++                                let mut original = Simulator::new(5,2,&mut rng1);
++                                let mut optimized = Simulator::new(5,2,&mut rng2);
++                                for q in 0..5 {
++                                    let v = if state >> q & 1 == 1 { u64::MAX } else { 0 };
++                                    original.qubits[q] = v;
++                                    optimized.qubits[q] = v;
++                                }
++                                for bit in 0..2 {
++                                    let v = if bits >> bit & 1 == 1 { u64::MAX } else { 0 };
++                                    original.bits[bit] = v;
++                                    optimized.bits[bit] = v;
++                                }
++                                let initial = optimized.qubits.clone();
++                                original.apply_iter(original_ops.iter());
++                                optimized.apply_iter(optimized_ops.iter());
++                                assert_eq!(original.qubits,optimized.qubits);
++                                assert_eq!(original.bits,optimized.bits);
++                                assert_eq!(optimized.phase,0);
++                                optimized.apply_iter(optimized_ops.iter().rev());
++                                assert_eq!(optimized.qubits,initial);
++                                checked += 1;
++                            }
++                        }
++                    }
++                }
++            }
++        }
++        assert!(moved > 0);
++        assert_eq!(checked,10880);
++    }
++}
+--- /dev/null
++++ b/src/point_add/relay_cache.rs
+@@ -0,0 +1,90 @@
++//! Exact retained-AND reuse through five disjoint affine storage routes.
++//!
++//! The preceding circuit is frozen by its operation count and SHA3-256 digest.
++//! For each route, a symbolic pass proves that an HMR's measured value equals
++//! both its immediate CZ correction and a later CCX's product. The later CCX
++//! target is zero. Instead of erasing that value, swaps keep it in borrowed
++//! wires until it replaces the later computation. HMRs and their random-word
++//! order are preserved; the first HMR now measures zero and its CZ is removed.
++//!
++//! A borrowed wire is either zero or an affine parity of unchanged wires.
++//! CNOTs clear that parity before storage and restore it after the handoff.
++//! The planner proves that donors are untouched and parity sources unwritten
++//! during each lease. Handoffs occur outside classical condition blocks.
++//! Each route restores every borrowed wire and removes one unconditional CCX.
++//!
++//! Retained-AND caching follows the technique credited to MonitSharma in the
++//! existing product_cache.rs / retained_and.rs. The affine relay schedules and
++//! their discovery are this experiment's contribution; no approximation or
++//! validation nonce changes are made.
++
++use crate::circuit::{Op, OperationType as K};
++use sha3::{Digest, Sha3_256};
++
++const TABLE: &str = include_str!("relay_cache.txt");
++
++fn fields(o: &Op) -> [u64; 7] {
++    [o.kind as u64, o.q_control2.0, o.q_control1.0, o.q_target.0,
++     o.c_target.0, o.c_condition.0, o.r_target.0]
++}
++
++fn decode(v: &[u64]) -> Op {
++    assert_eq!(v.len(), 7);
++    let mut o = Op::empty();
++    o.kind = match v[0] {
++        0 => K::Neg, 1 => K::Register, 2 => K::AppendToRegister,
++        3 => K::BitInvert, 4 => K::BitStore0, 5 => K::BitStore1,
++        6 => K::X, 7 => K::Z, 8 => K::CX, 9 => K::CZ,
++        10 => K::Swap, 11 => K::R, 12 => K::Hmr, 13 => K::CCX,
++        14 => K::CCZ, 15 => K::PushCondition, 16 => K::PopCondition,
++        17 => K::DebugPrint, _ => panic!("invalid relay row kind"),
++    };
++    o.q_control2.0 = v[1]; o.q_control1.0 = v[2]; o.q_target.0 = v[3];
++    o.c_target.0 = v[4]; o.c_condition.0 = v[5]; o.r_target.0 = v[6];
++    o.validate();
++    o
++}
++
++pub(super) fn run(ops: Vec<Op>) -> Vec<Op> {
++    let mut lines = TABLE.lines();
++    let header: Vec<&str> = lines.next().expect("relay header").split_whitespace().collect();
++    assert_eq!(header.len(), 3);
++    assert_eq!(header[0], "RELAY_CACHE");
++    assert_eq!(ops.len(), header[1].parse::<usize>().unwrap(), "relay source count");
++    let mut hash = Sha3_256::new();
++    for o in &ops {
++        for v in fields(o) { hash.update(v.to_le_bytes()); }
++    }
++    assert_eq!(format!("{:x}", hash.finalize()), header[2], "relay source digest");
++
++    let edits: Vec<Vec<u64>> = lines.map(|line| line.split_whitespace()
++        .map(|x| x.parse::<u64>().expect("relay integer")).collect()).collect();
++    let mut delta = 0isize;
++    let mut previous = None;
++    for e in &edits {
++        assert!(e.len() >= 9);
++        let i = usize::try_from(e[0]).unwrap();
++        assert!(i < ops.len());
++        assert!(previous.map_or(true, |p| p < i), "relay edit order");
++        previous = Some(i);
++        let count = usize::try_from(e[1]).unwrap();
++        assert_eq!(e.len(), 9 + 7 * count);
++        assert_eq!(fields(&ops[i]).as_slice(), &e[2..9], "relay expected source row");
++        delta += count as isize - 1;
++    }
++    assert_eq!(edits.len(), 47);
++    assert_eq!(delta, 64);
++    let mut out = Vec::with_capacity(ops.len().checked_add_signed(delta).unwrap());
++    let mut cursor = 0usize;
++    for (i, o) in ops.into_iter().enumerate() {
++        if cursor < edits.len() && edits[cursor][0] as usize == i {
++            for row in edits[cursor][9..].chunks_exact(7) { out.push(decode(row)); }
++            cursor += 1;
++        } else {
++            out.push(o);
++        }
++    }
++    assert_eq!(cursor, edits.len());
++    eprintln!("RELAY_CACHE routes=5 Toffoli_removed=5 added_qubits=0 op_delta=64");
++    out
++}
+--- /dev/null
++++ b/src/point_add/relay_cache.txt
+@@ -0,0 +1,48 @@
++RELAY_CACHE 10233002 cff12379480bc85e1cb8655d90754b7eb489468d7b3e646519ad93ee34fa1dab
++3252602 2 12 18446744073709551615 18446744073709551615 1209 1378 18446744073709551615 18446744073709551615 10 18446744073709551615 1209 1211 18446744073709551615 18446744073709551615 18446744073709551615 12 18446744073709551615 18446744073709551615 1209 1378 18446744073709551615 18446744073709551615
++3252603 0 9 18446744073709551615 257 256 18446744073709551615 1378 18446744073709551615
++3252880 3 13 274 577 1211 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1218 1210 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1211 1210 18446744073709551615 18446744073709551615 18446744073709551615 13 274 577 1211 18446744073709551615 18446744073709551615 18446744073709551615
++3253040 3 8 18446744073709551615 1210 577 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1210 187 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1218 1210 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 577 18446744073709551615 18446744073709551615 18446744073709551615
++3253102 3 13 282 577 187 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 187 1218 18446744073709551615 18446744073709551615 18446744073709551615 13 282 577 187 18446744073709551615 18446744073709551615 18446744073709551615
++3253206 3 8 18446744073709551615 1218 577 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1218 1223 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1218 577 18446744073709551615 18446744073709551615 18446744073709551615
++3253283 3 13 289 257 1223 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1223 1218 18446744073709551615 18446744073709551615 18446744073709551615 13 289 257 1223 18446744073709551615 18446744073709551615 18446744073709551615
++3253546 3 8 18446744073709551615 1205 1210 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1218 1215 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1205 1210 18446744073709551615 18446744073709551615 18446744073709551615
++3253565 3 13 300 577 1215 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1215 1218 18446744073709551615 18446744073709551615 18446744073709551615 13 300 577 1215 18446744073709551615 18446744073709551615 18446744073709551615
++3253593 3 8 18446744073709551615 1205 1210 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1218 186 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1205 1210 18446744073709551615 18446744073709551615 18446744073709551615
++3253663 3 13 304 577 186 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 186 1218 18446744073709551615 18446744073709551615 18446744073709551615 13 304 577 186 18446744073709551615 18446744073709551615 18446744073709551615
++3254049 3 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 1378 18446744073709551615 10 18446744073709551615 1218 1209 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1210 1218 18446744073709551615 18446744073709551615 18446744073709551615 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 1378 18446744073709551615
++3255264 1 13 257 256 1216 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1209 1216 18446744073709551615 18446744073709551615 18446744073709551615
++3273069 2 12 18446744073709551615 18446744073709551615 1208 1376 18446744073709551615 18446744073709551615 10 18446744073709551615 1208 1209 18446744073709551615 18446744073709551615 18446744073709551615 12 18446744073709551615 18446744073709551615 1208 1376 18446744073709551615 18446744073709551615
++3273070 0 9 18446744073709551615 1207 573 18446744073709551615 1376 18446744073709551615
++3273385 3 13 864 1222 1209 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1201 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1209 1201 18446744073709551615 18446744073709551615 18446744073709551615 13 864 1222 1209 18446744073709551615 18446744073709551615 18446744073709551615
++3273545 3 8 18446744073709551615 1201 1222 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1201 1218 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1201 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1201 1222 18446744073709551615 18446744073709551615 18446744073709551615
++3273607 3 13 872 1222 1218 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1232 1230 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1218 1230 18446744073709551615 18446744073709551615 18446744073709551615 13 872 1222 1218 18446744073709551615 18446744073709551615 18446744073709551615
++3275086 3 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 1376 18446744073709551615 10 18446744073709551615 1230 1213 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1232 1230 18446744073709551615 18446744073709551615 18446744073709551615 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 1376 18446744073709551615
++3276063 1 13 1207 573 1217 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1213 1217 18446744073709551615 18446744073709551615 18446744073709551615
++3293576 2 12 18446744073709551615 18446744073709551615 185 1377 18446744073709551615 18446744073709551615 10 18446744073709551615 185 1213 18446744073709551615 18446744073709551615 18446744073709551615 12 18446744073709551615 18446744073709551615 185 1377 18446744073709551615 18446744073709551615
++3293577 0 9 18446744073709551615 257 256 18446744073709551615 1377 18446744073709551615
++3293850 3 13 274 581 1213 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1199 184 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1213 184 18446744073709551615 18446744073709551615 18446744073709551615 13 274 581 1213 18446744073709551615 18446744073709551615 18446744073709551615
++3294010 3 8 18446744073709551615 184 581 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 184 1232 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1199 184 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 184 581 18446744073709551615 18446744073709551615 18446744073709551615
++3294072 3 13 282 581 1232 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1229 1199 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1232 1199 18446744073709551615 18446744073709551615 18446744073709551615 13 282 581 1232 18446744073709551615 18446744073709551615 18446744073709551615
++3295585 3 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 1377 18446744073709551615 10 18446744073709551615 1199 185 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1229 1199 18446744073709551615 18446744073709551615 18446744073709551615 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 1377 18446744073709551615
++3296233 1 13 257 256 1233 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 185 1233 18446744073709551615 18446744073709551615 18446744073709551615
++6485282 2 12 18446744073709551615 18446744073709551615 706 656 18446744073709551615 18446744073709551615 10 18446744073709551615 706 864 18446744073709551615 18446744073709551615 18446744073709551615 12 18446744073709551615 18446744073709551615 706 656 18446744073709551615 18446744073709551615
++6485283 0 9 18446744073709551615 256 1149 18446744073709551615 656 18446744073709551615
++6485650 3 13 274 863 864 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 187 1223 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 864 1223 18446744073709551615 18446744073709551615 18446744073709551615 13 274 863 864 18446744073709551615 18446744073709551615 18446744073709551615
++6485773 3 8 18446744073709551615 1223 276 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1223 1216 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 187 1223 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1223 276 18446744073709551615 18446744073709551615 18446744073709551615
++6485862 3 13 282 863 1216 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 187 580 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1216 580 18446744073709551615 18446744073709551615 18446744073709551615 13 282 863 1216 18446744073709551615 18446744073709551615 18446744073709551615
++6487386 3 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 656 18446744073709551615 10 18446744073709551615 580 1208 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 187 580 18446744073709551615 18446744073709551615 18446744073709551615 15 18446744073709551615 18446744073709551615 18446744073709551615 18446744073709551615 656 18446744073709551615
++6488081 1 13 256 1149 580 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1208 580 18446744073709551615 18446744073709551615 18446744073709551615
++6530126 2 12 18446744073709551615 18446744073709551615 580 656 18446744073709551615 18446744073709551615 10 18446744073709551615 580 1127 18446744073709551615 18446744073709551615 18446744073709551615 12 18446744073709551615 18446744073709551615 580 656 18446744073709551615 18446744073709551615
++6530127 0 9 18446744073709551615 257 256 18446744073709551615 656 18446744073709551615
++6530446 3 13 274 184 1127 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1199 1230 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1127 1230 18446744073709551615 18446744073709551615 18446744073709551615 13 274 184 1127 18446744073709551615 18446744073709551615 18446744073709551615
++6530569 3 8 18446744073709551615 1230 276 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1230 1058 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1199 1230 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 276 18446744073709551615 18446744073709551615 18446744073709551615
++6530658 3 13 282 184 1058 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1058 1199 18446744073709551615 18446744073709551615 18446744073709551615 13 282 184 1058 18446744073709551615 18446744073709551615 18446744073709551615
++6530734 3 8 18446744073709551615 1199 184 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1199 1226 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1199 184 18446744073709551615 18446744073709551615 18446744073709551615
++6530836 3 13 289 257 1226 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1226 1199 18446744073709551615 18446744073709551615 18446744073709551615 13 289 257 1226 18446744073709551615 18446744073709551615 18446744073709551615
++6531080 3 8 18446744073709551615 1228 1230 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1199 1221 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1228 1230 18446744073709551615 18446744073709551615 18446744073709551615
++6531107 3 13 300 184 1221 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1221 1199 18446744073709551615 18446744073709551615 18446744073709551615 13 300 184 1221 18446744073709551615 18446744073709551615 18446744073709551615
++6531127 3 8 18446744073709551615 1228 1230 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 1199 865 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1228 1230 18446744073709551615 18446744073709551615 18446744073709551615
++6531203 3 13 304 184 865 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 865 1199 18446744073709551615 18446744073709551615 18446744073709551615 13 304 184 865 18446744073709551615 18446744073709551615 18446744073709551615
++6531390 3 7 18446744073709551615 18446744073709551615 1199 18446744073709551615 656 18446744073709551615 10 18446744073709551615 1199 580 18446744073709551615 18446744073709551615 18446744073709551615 8 18446744073709551615 1230 1199 18446744073709551615 18446744073709551615 18446744073709551615 7 18446744073709551615 18446744073709551615 1199 18446744073709551615 656 18446744073709551615
++6532840 1 13 257 256 1201 18446744073709551615 18446744073709551615 18446744073709551615 10 18446744073709551615 580 1201 18446744073709551615 18446744073709551615 18446744073709551615
